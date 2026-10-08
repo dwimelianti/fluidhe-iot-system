@@ -440,15 +440,15 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
               <WifiOff className="w-7 h-7 text-rose-600" />
             </div>
             <h4 className="text-base font-black text-slate-800 tracking-tight flex items-center gap-2">
-              ESP32 Offline (Data Tidak Masuk)
+              Mesin Belum Terhubung (Data Tidak Masuk)
             </h4>
             <p className="text-xs text-slate-500 mt-2 leading-relaxed max-w-xs">
-              Mikrokontroler ESP32 laboratorium sedang tidak terhubung atau belum mengirimkan data telemetri. Nilai sensor disembunyikan demi menjaga kepastian pembacaan.
+              Mesin Heat Exchanger laboratorium sedang tidak terhubung atau belum mengirimkan data. Nilai sensor disembunyikan demi menjaga kepastian pembacaan.
             </p>
             <div className="mt-4 flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 border border-rose-300/80 text-rose-800 text-[11px] font-extrabold uppercase tracking-wider shadow-2xs">
                 <span className="w-2 h-2 rounded-full bg-rose-500" />
-                Status: Hardware Offline
+                Status: Mesin Offline
               </span>
             </div>
           </div>

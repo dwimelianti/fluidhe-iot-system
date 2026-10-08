@@ -140,7 +140,7 @@ export const OPERATOR_TOUR_STEPS: TourStep[] = [
     icon: <ArrowRightLeft className="w-5 h-5 text-sky-500" />,
     title: '2. Arah Aliran Fluida',
     description: 'Pilih Counter-Current atau Co-Current untuk mengatur konfigurasi katup solenoid.',
-    tips: 'Perintah langsung terkirim otomatis ke ESP32 tanpa putar valve manual.'
+    tips: 'Perintah langsung terkirim otomatis ke mesin tanpa putar valve manual.'
   },
   {
     id: 'ctrl-3-temp-operator',
@@ -280,8 +280,8 @@ export const ADMIN_TOUR_STEPS: TourStep[] = [
     badge: 'Langkah 1',
     icon: <Sparkles className="w-5 h-5 text-sky-600" />,
     title: '1. Mode Operasi (AUTO / MANUAL)',
-    description: '• AUTO: Algoritma PID ESP32 mengatur daya & katup otomatis.\n• MANUAL: Uji mandiri tiap aktuator.',
-    tips: 'Mode kendali langsung tersinkron ke firmware rig di lab.'
+    description: '• AUTO: Sistem mengatur daya pemanas & katup secara otomatis.\n• MANUAL: Uji mandiri tiap aktuator.',
+    tips: 'Mode kendali langsung tersinkron ke mesin di lab.'
   },
   {
     id: 'ctrl-2-flow-admin',

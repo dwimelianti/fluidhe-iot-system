@@ -438,12 +438,12 @@ export const DualHeatersControl: React.FC<DualHeatersControlProps> = ({
             {isAnyThermostatSyncing ? (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-extrabold text-[10px] animate-pulse shadow-2xs">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600" />
-                <span>Mengirim ke ESP32...</span>
+                <span>Mengirim ke Mesin...</span>
               </div>
             ) : (
               <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-[10px]">
                 <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                <span>Tersinkron IoT</span>
+                <span>Tersinkron ke Mesin</span>
               </div>
             )}
             <span className="text-[10px] font-bold text-slate-400 hidden md:inline">
@@ -640,11 +640,11 @@ export const DualHeatersControl: React.FC<DualHeatersControlProps> = ({
         >
           {isSyncingCal ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin text-white" /> MENYINKRONKAN KE ESP32...
+              <Loader2 className="w-4 h-4 animate-spin text-white" /> MENYINKRONKAN KE MESIN...
             </>
           ) : calSaveSuccess ? (
             <>
-              <Check className="w-4 h-4 stroke-[3]" /> KALIBRASI BERHASIL DISIMPAN KE IOT &amp; DATABASE!
+              <Check className="w-4 h-4 stroke-[3]" /> KALIBRASI BERHASIL DISIMPAN KE MESIN &amp; DATABASE!
             </>
           ) : (
             'SIMPAN KALIBRASI SENSOR'

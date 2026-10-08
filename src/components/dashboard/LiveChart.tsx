@@ -558,9 +558,9 @@ export const LiveChart: React.FC<LiveChartProps> = ({
               <div className="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mb-2 shadow-2xs">
                 <WifiOff className="w-5 h-5" />
               </div>
-              <h5 className="text-sm font-extrabold text-slate-800">ESP32 Offline (Data Tidak Masuk)</h5>
+              <h5 className="text-sm font-extrabold text-slate-800">Mesin Belum Terhubung (Data Tidak Masuk)</h5>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Grafik telemetri live akan mulai digambar secara otomatis saat alat laboratorium dinyalakan dan mengirimkan data ke sistem.
+                Grafik sensor live akan mulai digambar secara otomatis saat mesin laboratorium dinyalakan dan terhubung ke sistem.
               </p>
             </div>
           </div>

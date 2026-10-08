@@ -108,7 +108,7 @@ export const SystemReadinessBanner: React.FC<SystemReadinessBannerProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                Sedang memverifikasi komunikasi ESP32, memeriksa baseline sensor, dan mengalokasikan sesi baru.
+                Sedang memverifikasi komunikasi mesin laboratorium, memeriksa baseline sensor, dan mengalokasikan sesi baru.
               </p>
             </div>
           </div>

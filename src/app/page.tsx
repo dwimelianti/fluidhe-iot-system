@@ -229,7 +229,7 @@ export default function FluidHEDashboard() {
   }>({
     active: false,
     message: 'Tersinkronisasi',
-    detail: 'Semua perintah terkirim ke ESP32',
+    detail: 'Semua perintah terkirim ke mesin',
     type: 'idle'
   });
 
@@ -242,7 +242,7 @@ export default function FluidHEDashboard() {
     setSyncFeedback({
       active: true,
       message: `Mengirim: ${commandName} (${valueStr})`,
-      detail: `Data sedang dikirim ke mikrokontroler ESP32 via IoT Cloud...`,
+      detail: `Data sedang dikirim ke mesin laboratorium...`,
       type: 'syncing'
     });
 
@@ -251,7 +251,7 @@ export default function FluidHEDashboard() {
       setSyncFeedback({
         active: true,
         message: `Tersinkron: ${commandName}`,
-        detail: `Nilai ${valueStr} berhasil diterima & aktif di mikrokontroler.`,
+        detail: `Nilai ${valueStr} berhasil diterima & aktif di mesin.`,
         type: 'success'
       });
     }, 500);
@@ -3360,8 +3360,8 @@ export default function FluidHEDashboard() {
             id="tour-iot-badge"
             title={
               isHardwareOnline
-                ? 'Alat laboratorium (ESP32) aktif mengirimkan data telemetri secara real-time.'
-                : 'ESP32 Offline - Data telemetri tidak masuk dari alat laboratorium.'
+                ? 'Mesin laboratorium aktif mengirimkan data telemetri secara real-time.'
+                : 'Mesin Belum Terhubung - Data telemetri tidak masuk dari mesin laboratorium.'
             }
             className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold border transition whitespace-nowrap shrink-0 ${
               isHardwareOnline
