@@ -2173,193 +2173,129 @@ export default function FluidHEDashboard() {
     }
   };
 
-  const handleTakeSnapshot = () => {
-    const video = videoRef.current;
-
+  const handleTakeSnapshot = async () => {
     const timeStr = new Date().toLocaleTimeString('id-ID').replace(/:/g, '-');
     const dateStr = new Date().toLocaleDateString('id-ID');
+    const fileName = `Snapshot_HE_${dateStr.replace(/\//g, '-')}_${timeStr}.jpg`;
+
+    triggerCctvToast('Mengambil snapshot HD dari kamera...', 'info');
 
     try {
-      const canvas = document.createElement('canvas');
-      canvas.width = (video && video.videoWidth) ? video.videoWidth : 1280;
-      canvas.height = (video && video.videoHeight) ? video.videoHeight : 720;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      // 1. Fetch real camera frame from /api/cctv/snapshot
+      const res = await fetch('/api/cctv/snapshot');
+      if (!res.ok) throw new Error('Gagal mengambil snapshot dari kamera');
+      const blob = await res.blob();
+      const localUrl = URL.createObjectURL(blob);
 
-      // Draw current video frame if video element exists and has content
-      if (video && video.readyState >= 2) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      } else {
-        // Fallback dark canvas frame
-        ctx.fillStyle = '#09090b';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
+      // 2. Direct browser download so user immediately gets the file
+      const downloadLink = document.createElement('a');
+      downloadLink.href = localUrl;
+      downloadLink.download = fileName;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
 
-      // Add watermark overlay bar
-      const barHeight = 56;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(0, canvas.height - barHeight, canvas.width, barHeight);
-      ctx.font = 'bold 18px monospace';
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillText(`FluidHE Lab CCTV • ${dateStr} ${timeStr} WIB`, 16, canvas.height - 32);
-      ctx.font = '14px monospace';
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText(`TI1: ${latestData.ti1}°C | TI2: ${latestData.ti2}°C | TI3: ${latestData.ti3}°C | TI4: ${latestData.ti4}°C | FC1: ${latestData.fc1} L/m`, 16, canvas.height - 10);
-
-      const localDataUrl = canvas.toDataURL('image/png');
-
-      canvas.toBlob(async (blob) => {
-        if (!blob) return;
-
-        const fileName = `Snapshot_HE_${timeStr}.png`;
-
-        try {
-          // Direct Upload to Google Drive (CCTV_Snapshots folder)
-          const result = await uploadToCloud(blob, fileName, 'cctv-snapshots');
-
-          const newSnap = {
-            id: 'snap-' + Date.now(),
-            type: 'snapshot' as const,
-            title: `Snapshot Lab HE (${timeStr})`,
-            timestamp: `${dateStr} ${timeStr} WIB`,
-            url: result.url || localDataUrl,
-            metadata: {
-              ti1: latestData.ti1,
-              ti2: latestData.ti2,
-              ti3: latestData.ti3,
-              ti4: latestData.ti4,
-              flow: latestData.fc1,
-              heater: dualHeaterState.powerWatt > 0 ? `${dualHeaterState.powerWatt}W` : 'OFF'
-            }
-          };
-
-          setCctvMediaList((prev) => [newSnap, ...prev]);
-          triggerCctvToast('Snapshot tersimpan di Google Drive', 'success');
-        } catch (err: any) {
-          console.error('Snapshot Cloud upload error:', err);
-          const fallbackSnap = {
-            id: 'snap-' + Date.now(),
-            type: 'snapshot' as const,
-            title: `Snapshot Lab HE (${timeStr})`,
-            timestamp: `${dateStr} ${timeStr} WIB`,
-            url: localDataUrl,
-            metadata: {
-              ti1: latestData.ti1,
-              ti2: latestData.ti2,
-              ti3: latestData.ti3,
-              ti4: latestData.ti4,
-              flow: latestData.fc1,
-              heater: dualHeaterState.powerWatt > 0 ? `${dualHeaterState.powerWatt}W` : 'OFF'
-            }
-          };
-          setCctvMediaList((prev) => [fallbackSnap, ...prev]);
-          triggerCctvToast('Snapshot disimpan ke Galeri', 'success');
+      // 3. Save to media gallery list
+      const newSnap = {
+        id: 'snap-' + Date.now(),
+        type: 'snapshot' as const,
+        title: `Snapshot Lab HE (${timeStr})`,
+        timestamp: `${dateStr} ${timeStr} WIB`,
+        url: localUrl,
+        metadata: {
+          ti1: latestData.ti1,
+          ti2: latestData.ti2,
+          ti3: latestData.ti3,
+          ti4: latestData.ti4,
+          flow: latestData.fc1,
+          heater: dualHeaterState.powerWatt > 0 ? `${dualHeaterState.powerWatt}W` : 'OFF'
         }
-      }, 'image/png');
-    } catch (err) {
+      };
+
+      setCctvMediaList((prev) => [newSnap, ...prev]);
+      uploadToCloud(blob, fileName, 'cctv-snapshots').catch(() => {});
+      triggerCctvToast('Snapshot HD berhasil diambil & diunduh!', 'success');
+    } catch (err: any) {
       console.error('Snapshot capture error:', err);
       triggerCctvToast('Gagal mengambil snapshot dari kamera', 'warning');
     }
   };
 
-  const handleToggleManualRecord = () => {
+  const handleToggleManualRecord = async () => {
     if (!isManualRecording) {
-      // START recording
-      const stream = (videoRef.current && (videoRef.current as any).captureStream ? (videoRef.current as any).captureStream(30) : null) || webrtcStreamRef.current;
-      if (!stream) {
-        triggerCctvToast('Tidak dapat merekam: kamera belum terhubung', 'warning');
-        return;
-      }
-
+      // START RECORDING
       try {
-        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-          ? 'video/webm;codecs=vp9'
-          : MediaRecorder.isTypeSupported('video/webm')
-            ? 'video/webm'
-            : '';
-
-        if (!mimeType) {
-          triggerCctvToast('Browser tidak mendukung perekaman video', 'warning');
-          return;
+        const res = await fetch('/api/cctv/record', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'start' })
+        });
+        const data = await res.json();
+        if (data.success) {
+          setIsManualRecording(true);
+          setRecordingSeconds(0);
+          triggerCctvToast('Perekaman video MP4 live dimulai...', 'warning');
+        } else {
+          triggerCctvToast('Gagal memulai perekaman video', 'warning');
         }
-
-        recordedChunksRef.current = [];
-        const recorder = new MediaRecorder(stream, { mimeType });
-        mediaRecorderRef.current = recorder;
-
-        recorder.ondataavailable = (e) => {
-          if (e.data && e.data.size > 0) {
-            recordedChunksRef.current.push(e.data);
-          }
-        };
-
-        recorder.start(1000);
-        setIsManualRecording(true);
-        triggerCctvToast('Perekaman video live dimulai...', 'warning');
       } catch (err) {
-        console.error('MediaRecorder error:', err);
+        console.error('Record start error:', err);
         triggerCctvToast('Gagal memulai perekaman video', 'warning');
       }
     } else {
-      // STOP recording
-      const recorder = mediaRecorderRef.current;
-      if (recorder && recorder.state !== 'inactive') {
-        recorder.onstop = async () => {
-          const dur = recordingSeconds;
+      // STOP RECORDING
+      try {
+        triggerCctvToast('Menyimpan rekaman video MP4...', 'info');
+        const res = await fetch('/api/cctv/record', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'stop' })
+        });
+        const data = await res.json();
+        setIsManualRecording(false);
+
+        if (data.success && data.fileName) {
+          const dur = data.durationSeconds || recordingSeconds;
           const timeStr = new Date().toLocaleTimeString('id-ID').replace(/:/g, '-');
           const dateStr = new Date().toLocaleDateString('id-ID');
-          const blob = new Blob(recordedChunksRef.current, { type: 'video/mp4' });
-          const localVideoUrl = URL.createObjectURL(blob);
-          const fileName = `Recording_HE_${dur}s_${timeStr}.mp4`;
+          const videoUrl = data.url || `/api/cctv/recordings/stream?file=${encodeURIComponent(data.fileName)}`;
 
-          try {
-            const result = await uploadToCloud(blob, fileName, 'cctv-recordings');
+          // Direct browser download of MP4 file!
+          const downloadLink = document.createElement('a');
+          downloadLink.href = videoUrl;
+          downloadLink.download = data.fileName;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
 
-            const newVideo = {
-              id: 'rec-' + Date.now(),
-              type: 'video' as const,
-              title: `Rekaman Lab HE (${dur}s)`,
-              timestamp: `${dateStr} ${timeStr} WIB`,
-              url: result.url || localVideoUrl,
-              metadata: {
-                ti1: latestData.ti1,
-                ti2: latestData.ti2,
-                ti3: latestData.ti3,
-                ti4: latestData.ti4,
-                flow: latestData.fc1,
-                duration: `${dur} Detik`,
-                heater: dualHeaterState.powerWatt > 0 ? `${dualHeaterState.powerWatt}W` : 'OFF'
-              }
-            };
+          const newVideo = {
+            id: 'rec-' + Date.now(),
+            type: 'video' as const,
+            title: `Rekaman Lab HE (${dur}s)`,
+            timestamp: `${dateStr} ${timeStr} WIB`,
+            url: videoUrl,
+            metadata: {
+              ti1: latestData.ti1,
+              ti2: latestData.ti2,
+              ti3: latestData.ti3,
+              ti4: latestData.ti4,
+              flow: latestData.fc1,
+              duration: `${dur} Detik`,
+              size: data.fileSize || 'MP4',
+              heater: dualHeaterState.powerWatt > 0 ? `${dualHeaterState.powerWatt}W` : 'OFF'
+            }
+          };
 
-            setCctvMediaList((prev) => [newVideo, ...prev]);
-            triggerCctvToast(`Rekaman ${dur}s tersimpan di Google Drive`, 'success');
-          } catch (err: any) {
-            console.error('Recording Cloud upload error:', err);
-            const fallbackVideo = {
-              id: 'rec-' + Date.now(),
-              type: 'video' as const,
-              title: `Rekaman Lab HE (${dur}s)`,
-              timestamp: `${dateStr} ${timeStr} WIB`,
-              url: localVideoUrl,
-              metadata: {
-                ti1: latestData.ti1,
-                ti2: latestData.ti2,
-                ti3: latestData.ti3,
-                ti4: latestData.ti4,
-                flow: latestData.fc1,
-                duration: `${dur} Detik`,
-                heater: dualHeaterState.powerWatt > 0 ? `${dualHeaterState.powerWatt}W` : 'OFF'
-              }
-            };
-            setCctvMediaList((prev) => [fallbackVideo, ...prev]);
-            triggerCctvToast(`Rekaman video (${dur}s) disimpan ke Galeri`, 'success');
-          }
-        };
-        recorder.stop();
+          setCctvMediaList((prev) => [newVideo, ...prev]);
+          triggerCctvToast(`Rekaman video (${dur}s) berhasil disimpan & diunduh!`, 'success');
+        } else {
+          triggerCctvToast('Gagal menyelesaikan rekaman', 'warning');
+        }
+      } catch (err) {
+        console.error('Record stop error:', err);
+        setIsManualRecording(false);
+        triggerCctvToast('Gagal menyimpan rekaman video', 'warning');
       }
-      setIsManualRecording(false);
-      mediaRecorderRef.current = null;
     }
   };
 
@@ -3933,6 +3869,8 @@ export default function FluidHEDashboard() {
                       upperLimit={supabaseControls.upper_limit}
                       lowerLimit={supabaseControls.lower_limit}
                       flowCalibrationFactor={supabaseControls.flow_calibration_factor ?? 7.90}
+                      flowCalibrationFactor1={supabaseControls.flow_calibration_factor_1 ?? supabaseControls.flow_calibration_factor ?? 7.90}
+                      flowCalibrationFactor2={supabaseControls.flow_calibration_factor_2 ?? 7.90}
                       tempOffset={supabaseControls.temp_offset ?? 0.0}
                       pressureOffset={supabaseControls.pressure_offset ?? 0.0}
                       heater1Status={supabaseControls.btn_onoff !== undefined ? supabaseControls.btn_onoff : (supabaseControls.heater_1_status ?? false)}
@@ -3967,9 +3905,9 @@ export default function FluidHEDashboard() {
                         triggerSyncFeedback('Thermostat Setup', `KP: ${sp}°C | P${tol}`);
                         await handleThermostatSetupChange(sp, tol);
                       }}
-                      onSaveCalibration={async (flowCal, tOffset, pOffset) => {
-                        triggerSyncFeedback('Kalibrasi Sensor', `Flow: ${flowCal} | Temp: ${tOffset}°C | Press: ${pOffset}bar`);
-                        await handleSensorCalibrationChange(flowCal, tOffset, pOffset);
+                      onSaveCalibration={async (flowCal1, flowCal2, tOffset, pOffset) => {
+                        triggerSyncFeedback('Kalibrasi Sensor', `Flow Dingin: ${flowCal1} | Flow Panas: ${flowCal2} | Temp: ${tOffset}°C | Press: ${pOffset}bar`);
+                        await handleSensorCalibrationChange(flowCal1, flowCal2, tOffset, pOffset);
                       }}
                       targetUpper={supabaseControls.target_upper ?? 60}
                       targetLower={supabaseControls.target_lower ?? 45}
@@ -4165,6 +4103,7 @@ export default function FluidHEDashboard() {
               latestData={latestData}
               isHardwareOnline={isHardwareOnline}
               tempLabels={tempLabels}
+              cctvMediaList={cctvMediaList}
             />
           )}
 

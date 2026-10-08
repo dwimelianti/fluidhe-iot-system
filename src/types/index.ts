@@ -117,6 +117,8 @@ export interface DeviceControlsRow {
   upper_limit?: number;
   lower_limit?: number;
   flow_calibration_factor?: number;
+  flow_calibration_factor_1?: number;
+  flow_calibration_factor_2?: number;
   temp_offset?: number;
   pressure_offset?: number;
 }

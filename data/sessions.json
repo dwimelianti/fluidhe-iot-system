@@ -1,6 +1,50 @@
 {
   "sessions": [
     {
+      "id": "SES-20261008-123154",
+      "title": "Praktikum Counter-Current (MANUAL)",
+      "date": "2026-10-08",
+      "startTime": "12.31.54",
+      "startTimeMs": 1791437514717,
+      "operatorName": "Operator",
+      "operatorEmail": "",
+      "operatorRole": "operator",
+      "classGroup": "",
+      "pointsCount": 0,
+      "flowMode": "Counter-Current",
+      "data": []
+    },
+    {
+      "id": "SES-20261008-122936",
+      "title": "Praktikum Counter-Current (AUTO)",
+      "date": "2026-10-08",
+      "startTime": "12.29.36",
+      "startTimeMs": 1791437376449,
+      "operatorName": "Admin Satu",
+      "operatorEmail": "anugrahtriplecycle@gmail.com",
+      "operatorRole": "admin",
+      "classGroup": "Admin Satu",
+      "pointsCount": 0,
+      "flowMode": "Counter-Current",
+      "data": [],
+      "durationSeconds": 18
+    },
+    {
+      "id": "SES-20261008-122446",
+      "title": "Praktikum Counter-Current (SHUTDOWN)",
+      "date": "2026-10-08",
+      "startTime": "12.24.46",
+      "startTimeMs": 1791437086475,
+      "operatorName": "Operator 1",
+      "operatorEmail": "dwimeliantiistiqomah55@gmail.com",
+      "operatorRole": "operator",
+      "classGroup": "Operator 1",
+      "pointsCount": 0,
+      "flowMode": "Counter-Current",
+      "data": [],
+      "durationSeconds": 1
+    },
+    {
       "id": "SES-20261008-111154",
       "title": "Praktikum Counter-Current - 11.11 WIB",
       "date": "2026-10-08",
@@ -4254,7 +4298,9 @@
           "mode": "Counter-Current"
         }
       ],
-      "durationSeconds": 2805
+      "durationSeconds": 4370,
+      "endTime": "12.24.46",
+      "endTimeMs": 1791437086391
     },
     {
       "id": "SES-20261008-111137",

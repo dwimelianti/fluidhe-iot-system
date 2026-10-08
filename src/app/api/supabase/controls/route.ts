@@ -16,6 +16,8 @@ const VALID_COLUMNS = new Set([
   'upper_limit',
   'lower_limit',
   'flow_calibration_factor',
+  'flow_calibration_factor_1',
+  'flow_calibration_factor_2',
   'temp_offset',
   'pressure_offset',
   'target_flow',

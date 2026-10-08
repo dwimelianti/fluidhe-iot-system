@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const { action } = body;
 
     const ezvizDirection = DIRECTION_MAP[action] || 'UP';
-    const duration = action === 'zoomIn' || action === 'zoomOut' ? '0.4' : '0.55';
+    const duration = action === 'zoomIn' || action === 'zoomOut' ? '0.5' : '0.8';
 
     // 1. Sync command to Supabase so the Bandung lab daemon executes it instantly
     fetch(`${SUPABASE_URL}/rest/v1/telemetry_data`, {

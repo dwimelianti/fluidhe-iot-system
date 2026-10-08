@@ -66,6 +66,8 @@ export function useSupabaseIntegration() {
     upper_limit: 51.0,
     lower_limit: 49.0,
     flow_calibration_factor: 7.90,
+    flow_calibration_factor_1: 7.90,
+    flow_calibration_factor_2: 7.90,
     temp_offset: 0.0,
     pressure_offset: 0.0
   });
@@ -259,6 +261,8 @@ export function useSupabaseIntegration() {
                 target_upper: prev.target_upper,
                 target_lower: prev.target_lower,
                 flow_calibration_factor: prev.flow_calibration_factor,
+                flow_calibration_factor_1: prev.flow_calibration_factor_1,
+                flow_calibration_factor_2: prev.flow_calibration_factor_2,
                 temp_offset: prev.temp_offset,
                 pressure_offset: prev.pressure_offset,
                 servo_angle: prev.servo_angle,
@@ -283,6 +287,8 @@ export function useSupabaseIntegration() {
               upper_limit: data.upper_limit !== undefined ? data.upper_limit : (data.target_upper ?? prev.upper_limit),
               lower_limit: data.lower_limit !== undefined ? data.lower_limit : (data.target_lower ?? prev.lower_limit),
               flow_calibration_factor: data.flow_calibration_factor !== undefined ? data.flow_calibration_factor : prev.flow_calibration_factor,
+              flow_calibration_factor_1: data.flow_calibration_factor_1 !== undefined ? data.flow_calibration_factor_1 : (data.flow_calibration_factor ?? prev.flow_calibration_factor_1 ?? 7.90),
+              flow_calibration_factor_2: data.flow_calibration_factor_2 !== undefined ? data.flow_calibration_factor_2 : (prev.flow_calibration_factor_2 ?? 7.90),
               temp_offset: data.temp_offset !== undefined ? data.temp_offset : prev.temp_offset,
               pressure_offset: data.pressure_offset !== undefined ? data.pressure_offset : prev.pressure_offset,
               heater_1_status: h1,
@@ -560,16 +566,35 @@ export function useSupabaseIntegration() {
     return result;
   };
 
-  const handleSensorCalibrationChange = async (flowFactor: number, tempOffset: number, pressOffset: number) => {
+  const handleSensorCalibrationChange = async (
+    flowFactor1: number,
+    flowFactor2OrTempOffset: number,
+    tempOffsetOrPressOffset?: number,
+    pressOffset?: number
+  ) => {
+    let f1 = flowFactor1;
+    let f2 = flowFactor1;
+    let t = flowFactor2OrTempOffset;
+    let p = tempOffsetOrPressOffset ?? 0;
+
+    if (pressOffset !== undefined) {
+      f1 = flowFactor1;
+      f2 = flowFactor2OrTempOffset;
+      t = tempOffsetOrPressOffset!;
+      p = pressOffset;
+    }
+
     lastUserActionTimeRef.current = Date.now();
     setIsUpdatingControl(true);
     setDeviceControls((prev) => ({
       ...prev,
-      flow_calibration_factor: flowFactor,
-      temp_offset: tempOffset,
-      pressure_offset: pressOffset
+      flow_calibration_factor: f1,
+      flow_calibration_factor_1: f1,
+      flow_calibration_factor_2: f2,
+      temp_offset: t,
+      pressure_offset: p
     }));
-    const result = await supabaseControlService.setSensorCalibration(flowFactor, tempOffset, pressOffset);
+    const result = await supabaseControlService.setSensorCalibration(f1, f2, t, p);
     setIsUpdatingControl(false);
     if (!result.success) {
       setErrorMessage(`Gagal update Kalibrasi Sensor: ${result.error}`);

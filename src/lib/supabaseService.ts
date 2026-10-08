@@ -228,10 +228,17 @@ export const supabaseControlService = {
     });
   },
 
-  // 4d. Kalibrasi Sensor Dinamis (Flow, Temp Offset, Pressure Offset)
-  setSensorCalibration: async (flowCalibrationFactor: number, tempOffset: number, pressureOffset: number) => {
+  // 4d. Kalibrasi Sensor Dinamis (Flow Dingin, Flow Panas, Temp Offset, Pressure Offset)
+  setSensorCalibration: async (
+    flowCalibrationFactor1: number,
+    flowCalibrationFactor2: number,
+    tempOffset: number,
+    pressureOffset: number
+  ) => {
     return updateDeviceControls({
-      flow_calibration_factor: parseFloat(flowCalibrationFactor.toFixed(2)),
+      flow_calibration_factor: parseFloat(flowCalibrationFactor1.toFixed(2)),
+      flow_calibration_factor_1: parseFloat(flowCalibrationFactor1.toFixed(2)),
+      flow_calibration_factor_2: parseFloat(flowCalibrationFactor2.toFixed(2)),
       temp_offset: parseFloat(tempOffset.toFixed(1)),
       pressure_offset: parseFloat(pressureOffset.toFixed(2))
     });

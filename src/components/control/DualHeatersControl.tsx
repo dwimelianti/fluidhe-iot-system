@@ -28,6 +28,8 @@ export interface DualHeatersControlProps {
   lowerLimit?: number;
   // Sensor Calibration Props
   flowCalibrationFactor?: number;
+  flowCalibrationFactor1?: number;
+  flowCalibrationFactor2?: number;
   tempOffset?: number;
   pressureOffset?: number;
   // Handlers
@@ -36,7 +38,7 @@ export interface DualHeatersControlProps {
   onAdjustSetPoint?: (delta: number) => void | Promise<any>;
   onAdjustTolerance?: (delta: number) => void | Promise<any>;
   onSaveThermostatSetup?: (targetTempHot: number, toleranceLevel: number) => void | Promise<any>;
-  onSaveCalibration?: (flowFactor: number, tempOffset: number, pressOffset: number) => void | Promise<any>;
+  onSaveCalibration?: ((flowFactor1: number, flowFactor2: number, tempOffset: number, pressOffset: number) => void | Promise<any>) | ((flowFactor: number, tempOffset: number, pressOffset: number) => void | Promise<any>);
   // Legacy fallback props
   targetUpper?: number;
   targetLower?: number;
@@ -58,6 +60,8 @@ export const DualHeatersControl: React.FC<DualHeatersControlProps> = ({
   upperLimit,
   lowerLimit,
   flowCalibrationFactor = 7.90,
+  flowCalibrationFactor1 = 7.90,
+  flowCalibrationFactor2 = 7.90,
   tempOffset = 0.0,
   pressureOffset = 0.0,
   onToggleHeater1,
@@ -81,8 +85,9 @@ export const DualHeatersControl: React.FC<DualHeatersControlProps> = ({
   const [spInput, setSpInput] = useState<string>(String(targetTempHot ?? targetTemp ?? 50.0));
   const [localTol, setLocalTol] = useState<number>(toleranceLevel ?? 1);
 
-  // Local state for Calibration Inputs
-  const [flowCalInput, setFlowCalInput] = useState<string>(String(flowCalibrationFactor ?? 7.90));
+  // Local state for Calibration Inputs (Dingin & Panas)
+  const [flowCal1Input, setFlowCal1Input] = useState<string>(String(flowCalibrationFactor1 ?? flowCalibrationFactor ?? 7.90));
+  const [flowCal2Input, setFlowCal2Input] = useState<string>(String(flowCalibrationFactor2 ?? 7.90));
   const [tempOffsetInput, setTempOffsetInput] = useState<string>(String(tempOffset ?? 0.0));
   const [pressOffsetInput, setPressOffsetInput] = useState<string>(String(pressureOffset ?? 0.0));
   const [calSaveSuccess, setCalSaveSuccess] = useState<boolean>(false);
@@ -109,8 +114,18 @@ export const DualHeatersControl: React.FC<DualHeatersControlProps> = ({
   }, [toleranceLevel]);
 
   useEffect(() => {
-    if (flowCalibrationFactor !== undefined) setFlowCalInput(String(flowCalibrationFactor));
-  }, [flowCalibrationFactor]);
+    if (flowCalibrationFactor1 !== undefined) {
+      setFlowCal1Input(String(flowCalibrationFactor1));
+    } else if (flowCalibrationFactor !== undefined) {
+      setFlowCal1Input(String(flowCalibrationFactor));
+    }
+  }, [flowCalibrationFactor1, flowCalibrationFactor]);
+
+  useEffect(() => {
+    if (flowCalibrationFactor2 !== undefined) {
+      setFlowCal2Input(String(flowCalibrationFactor2));
+    }
+  }, [flowCalibrationFactor2]);
 
   useEffect(() => {
     if (tempOffset !== undefined) setTempOffsetInput(String(tempOffset));
@@ -197,11 +212,12 @@ export const DualHeatersControl: React.FC<DualHeatersControlProps> = ({
 
   // Handle Save Calibration
   const handleSaveCalibration = async () => {
-    const f = parseFloat(flowCalInput);
+    const f1 = parseFloat(flowCal1Input);
+    const f2 = parseFloat(flowCal2Input);
     const t = parseFloat(tempOffsetInput);
     const p = parseFloat(pressOffsetInput);
 
-    if (isNaN(f) || isNaN(t) || isNaN(p)) {
+    if (isNaN(f1) || isNaN(f2) || isNaN(t) || isNaN(p)) {
       setCalError('Isi semua nilai kalibrasi dengan angka valid!');
       return;
     }
@@ -210,7 +226,11 @@ export const DualHeatersControl: React.FC<DualHeatersControlProps> = ({
     if (onSaveCalibration) {
       setIsSyncingCal(true);
       try {
-        await Promise.resolve(onSaveCalibration(f, t, p));
+        if (onSaveCalibration.length === 3) {
+          await Promise.resolve((onSaveCalibration as any)(f1, t, p));
+        } else {
+          await Promise.resolve((onSaveCalibration as any)(f1, f2, t, p));
+        }
         setCalSaveSuccess(true);
         setTimeout(() => setCalSaveSuccess(false), 2500);
       } finally {
@@ -578,22 +598,40 @@ export const DualHeatersControl: React.FC<DualHeatersControlProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          {/* 1. Flow Factor Dingin */}
           <div className="flex flex-col bg-slate-50 p-2.5 rounded-xl border border-slate-200">
             <label className="text-[10px] text-slate-600 font-bold text-center mb-1">
-              Flow Factor
+              Flow Factor Dingin
             </label>
             <input
               type="number"
               step="0.01"
-              value={flowCalInput}
-              onChange={(e) => setFlowCalInput(e.target.value)}
+              value={flowCal1Input}
+              onChange={(e) => setFlowCal1Input(e.target.value)}
               disabled={emergencyStopped}
               className="bg-white border border-slate-300 text-center font-black text-slate-800 rounded-lg py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500"
             />
-            <span className="text-[8.5px] text-slate-400 text-center mt-1">Faktor pulsa sensor flow</span>
+            <span className="text-[8.5px] text-slate-400 text-center mt-1">Sensor flow dingin (FC1)</span>
           </div>
 
+          {/* 2. Flow Factor Panas (Sebelah kanan Flow Factor Dingin) */}
+          <div className="flex flex-col bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            <label className="text-[10px] text-slate-600 font-bold text-center mb-1">
+              Flow Factor Panas
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={flowCal2Input}
+              onChange={(e) => setFlowCal2Input(e.target.value)}
+              disabled={emergencyStopped}
+              className="bg-white border border-slate-300 text-center font-black text-slate-800 rounded-lg py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500"
+            />
+            <span className="text-[8.5px] text-slate-400 text-center mt-1">Sensor flow panas (FC2)</span>
+          </div>
+
+          {/* 3. Temp Offset */}
           <div className="flex flex-col bg-slate-50 p-2.5 rounded-xl border border-slate-200">
             <label className="text-[10px] text-slate-600 font-bold text-center mb-1">
               Temp Offset
@@ -609,6 +647,7 @@ export const DualHeatersControl: React.FC<DualHeatersControlProps> = ({
             <span className="text-[8.5px] text-slate-400 text-center mt-1">Koreksi suhu (°C)</span>
           </div>
 
+          {/* 4. Press Offset */}
           <div className="flex flex-col bg-slate-50 p-2.5 rounded-xl border border-slate-200">
             <label className="text-[10px] text-slate-600 font-bold text-center mb-1">
               Press Offset

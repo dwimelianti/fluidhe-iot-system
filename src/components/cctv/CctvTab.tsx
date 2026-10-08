@@ -20,6 +20,7 @@ import {
 import { TelemetryPoint, TempLabels } from '@/types';
 import { PtzController } from './PtzController';
 import { CctvWifiModal } from './CctvWifiModal';
+import { CctvStorageModal } from './CctvStorageModal';
 
 export interface CctvTabProps {
   selectedCamera: 'cam1' | 'cam2' | 'cam3';
@@ -54,6 +55,7 @@ export interface CctvTabProps {
   latestData: TelemetryPoint;
   isHardwareOnline?: boolean;
   tempLabels?: TempLabels;
+  cctvMediaList?: Array<any>;
 }
 
 export const CctvTab: React.FC<CctvTabProps> = ({
@@ -87,11 +89,32 @@ export const CctvTab: React.FC<CctvTabProps> = ({
   ptzMoving,
   latestData,
   isHardwareOnline = false,
-  tempLabels
+  tempLabels,
+  cctvMediaList = []
 }) => {
   const [isWifiModalOpen, setIsWifiModalOpen] = React.useState(false);
+  const [isStorageModalOpen, setIsStorageModalOpen] = React.useState(false);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [streamRefreshKey, setStreamRefreshKey] = React.useState(0);
+  const audioPlayerRef = React.useRef<HTMLAudioElement | null>(null);
+
+  React.useEffect(() => {
+    if (audioPlayerRef.current) {
+      if (cctvAudioMuted) {
+        audioPlayerRef.current.pause();
+      } else {
+        const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+        const audioSrc = isLocal
+          ? 'http://127.0.0.1:8889/api/stream.mp4?src=he_cctv'
+          : `${(cctvPublicUrl || '').replace(/\/+$/, '')}/api/stream.mp4?src=he_cctv`;
+        if (audioPlayerRef.current.src !== audioSrc) {
+          audioPlayerRef.current.src = audioSrc;
+        }
+        audioPlayerRef.current.volume = (cctvVolume || 100) / 100;
+        audioPlayerRef.current.play().catch((err) => console.log('Audio autoplay prevented:', err));
+      }
+    }
+  }, [cctvAudioMuted, cctvVolume, cctvPublicUrl]);
 
   React.useEffect(() => {
     if (!webrtcConnected) {
@@ -262,17 +285,24 @@ export const CctvTab: React.FC<CctvTabProps> = ({
 
             {/* Bottom Status & Snapshot Bar */}
             <div className="relative z-20 flex justify-between items-center bg-black/60 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 mt-auto">
-              <div className="flex items-center gap-2 text-white text-xs">
+              <div
+                onClick={() => setIsStorageModalOpen(true)}
+                className="flex items-center gap-2 text-white text-xs cursor-pointer hover:bg-white/10 px-2 py-1 rounded-lg transition"
+                title="Buka Penyimpanan & Rekaman NVR"
+              >
                 <button
                   type="button"
-                  onClick={() => setCctvRecording(!cctvRecording)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCctvRecording(!cctvRecording);
+                  }}
                   className="p-1 hover:bg-white/10 rounded-md transition text-zinc-300 hover:text-white cursor-pointer"
                   title={cctvRecording ? 'Jeda Perekaman NVR' : 'Mulai Merekam NVR'}
                 >
                   {cctvRecording ? <Pause className="w-3.5 h-3.5 text-emerald-400" /> : <Play className="w-3.5 h-3.5" />}
                 </button>
                 <span className="text-[11px] text-zinc-300 font-medium">
-                  NVR: <strong className="text-emerald-400">{cctvRecording ? '24/7 Aktif' : 'Jeda'}</strong>
+                  NVR: <strong className="text-emerald-400">{cctvRecording ? '24/7 Aktif' : 'Jeda'}</strong> (Klik untuk File)
                 </span>
               </div>
 
@@ -307,7 +337,8 @@ export const CctvTab: React.FC<CctvTabProps> = ({
               <button
                 type="button"
                 onClick={handleTakeSnapshot}
-                className="flex flex-col items-center justify-center p-3 rounded-xl bg-white hover:bg-sky-50 text-slate-700 hover:text-sky-800 transition text-xs font-bold gap-1.5 border border-slate-200 shadow-xs cursor-pointer"
+                className="flex flex-col items-center justify-center p-3 rounded-xl bg-white hover:bg-sky-50 text-slate-700 hover:text-sky-800 transition text-xs font-bold gap-1.5 border border-slate-200 shadow-xs cursor-pointer active:scale-95"
+                title="Ambil foto snapshot resolusi tinggi dari kamera"
               >
                 <Camera className="w-4 h-4 text-sky-600" />
                 <span className="text-[11px]">Snapshot</span>
@@ -316,10 +347,11 @@ export const CctvTab: React.FC<CctvTabProps> = ({
               <button
                 type="button"
                 onClick={handleToggleManualRecord}
-                className={`flex flex-col items-center justify-center p-3 rounded-xl transition text-xs font-bold gap-1.5 border shadow-xs cursor-pointer ${isManualRecording
+                className={`flex flex-col items-center justify-center p-3 rounded-xl transition text-xs font-bold gap-1.5 border shadow-xs cursor-pointer active:scale-95 ${isManualRecording
                     ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-500/20'
                     : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
                   }`}
+                title={isManualRecording ? 'Hentikan rekaman dan unduh file MP4' : 'Rekam klip live MP4 dengan audio'}
               >
                 <Disc className={`w-4 h-4 ${isManualRecording ? 'animate-spin' : 'text-sky-600'}`} />
                 <span className="text-[11px]">{isManualRecording ? 'Stop Rekam' : 'Rekam Video'}</span>
@@ -331,38 +363,46 @@ export const CctvTab: React.FC<CctvTabProps> = ({
                   const nextMuted = !cctvAudioMuted;
                   setCctvAudioMuted(nextMuted);
                   setAudioUserActivated(!nextMuted);
-                  if (videoRef.current) {
-                    videoRef.current.muted = nextMuted;
-                    if (!nextMuted) {
-                      videoRef.current.volume = (cctvVolume || 100) / 100;
-                      videoRef.current.play().catch((err) => console.log('Audio play error:', err));
+                  if (audioPlayerRef.current) {
+                    if (nextMuted) {
+                      audioPlayerRef.current.pause();
+                    } else {
+                      const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+                      const audioSrc = isLocal
+                        ? 'http://127.0.0.1:8889/api/stream.mp4?src=he_cctv'
+                        : `${(cctvPublicUrl || '').replace(/\/+$/, '')}/api/stream.mp4?src=he_cctv`;
+                      if (audioPlayerRef.current.src !== audioSrc) {
+                        audioPlayerRef.current.src = audioSrc;
+                      }
+                      audioPlayerRef.current.volume = (cctvVolume || 100) / 100;
+                      audioPlayerRef.current.play().catch((err) => console.log('Audio play error:', err));
                     }
                   }
-                  triggerCctvToast(!nextMuted ? 'Audio CCTV aktif' : 'Audio CCTV dinonaktifkan', 'info');
+                  triggerCctvToast(!nextMuted ? 'Suara CCTV aktif' : 'Suara CCTV dinonaktifkan', 'info');
                 }}
-                className={`flex flex-col items-center justify-center p-3 rounded-xl transition text-xs font-bold gap-1.5 border shadow-xs cursor-pointer ${!cctvAudioMuted
+                className={`flex flex-col items-center justify-center p-3 rounded-xl transition text-xs font-bold gap-1.5 border shadow-xs cursor-pointer active:scale-95 ${!cctvAudioMuted
                     ? 'bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 text-white border-sky-400/40 shadow-sm'
                     : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
                   }`}
+                title="Nyalakan/matikan audio mikrofon laboratorium"
               >
                 {!cctvAudioMuted ? <Volume2 className="w-4 h-4 text-white" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
                 <span className="text-[11px]">{!cctvAudioMuted ? 'Suara ON' : 'Suara OFF'}</span>
               </button>
 
-              <a
-                href="https://drive.google.com/drive/folders/1f9bPwAzlAIIZa1EHQqm588U-bsiWh5hv?usp=sharing"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex flex-col items-center justify-center p-3 rounded-xl bg-white hover:bg-sky-50 text-slate-700 hover:text-sky-800 transition text-xs font-bold gap-1.5 border border-slate-200 shadow-xs cursor-pointer"
-                title="Buka Rekaman CCTV di Google Drive"
+              <button
+                type="button"
+                onClick={() => setIsStorageModalOpen(true)}
+                className="flex flex-col items-center justify-center p-3 rounded-xl bg-white hover:bg-sky-50 text-slate-700 hover:text-sky-800 transition text-xs font-bold gap-1.5 border border-slate-200 shadow-xs cursor-pointer active:scale-95"
+                title="Buka File Rekaman MP4, Snapshot, & Google Drive"
               >
                 <Folder className="w-4 h-4 text-sky-600" />
-                <span className="text-[11px]">History</span>
-              </a>
+                <span className="text-[11px]">Penyimpanan</span>
+              </button>
             </div>
 
             {!cctvAudioMuted && (
-              <div className="pt-2 flex items-center gap-3 px-3.5 py-2 bg-white rounded-xl border border-slate-200 shadow-xs text-xs">
+              <div className="pt-2 flex items-center gap-3 px-3.5 py-2 bg-white rounded-xl border border-slate-200 shadow-xs text-xs animate-fade-in">
                 <Volume1 className="w-4 h-4 text-sky-600 shrink-0" />
                 <span className="text-[11px] text-slate-600 font-semibold shrink-0">Volume Suara Lab:</span>
                 <input
@@ -370,7 +410,13 @@ export const CctvTab: React.FC<CctvTabProps> = ({
                   min="0"
                   max="100"
                   value={cctvVolume}
-                  onChange={(e) => setCctvVolume(Number(e.target.value))}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setCctvVolume(val);
+                    if (audioPlayerRef.current) {
+                      audioPlayerRef.current.volume = val / 100;
+                    }
+                  }}
                   className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-sky-600"
                 />
                 <span className="font-mono text-slate-800 font-bold w-8 text-right text-[11px]">{cctvVolume}%</span>
@@ -393,12 +439,22 @@ export const CctvTab: React.FC<CctvTabProps> = ({
 
       </div>
 
+      {/* Hidden Audio Player for live stream sound */}
+      <audio ref={audioPlayerRef} playsInline autoPlay className="hidden" />
+
       {/* Modal Pengaturan Wi-Fi CCTV */}
       <CctvWifiModal
         isOpen={isWifiModalOpen}
         onClose={() => setIsWifiModalOpen(false)}
         onConnected={() => connectWebRTC()}
         triggerToast={triggerCctvToast}
+      />
+
+      {/* Modal Penyimpanan CCTV & File Explorer */}
+      <CctvStorageModal
+        isOpen={isStorageModalOpen}
+        onClose={() => setIsStorageModalOpen(false)}
+        snapshots={cctvMediaList}
       />
     </div>
   );
