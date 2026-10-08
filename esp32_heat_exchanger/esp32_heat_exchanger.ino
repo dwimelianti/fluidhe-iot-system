@@ -11,8 +11,8 @@
 // ============================================================================
 // KREDENSIAL & KONFIGURASI WIFI
 // ============================================================================
-const char* WIFI_SSID     = "Salafudin_4G"; 
-const char* WIFI_PASSWORD = "EhatEva1Yosep2";
+const char* WIFI_SSID     = "HE_IOT"; 
+const char* WIFI_PASSWORD = "KimiaUAD1960";
 
 // Supabase Configuration
 String SUPABASE_URL = "https://kkxfbjpbaxnmgsnxrbpj.supabase.co";
