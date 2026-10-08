@@ -129,9 +129,17 @@ export const CctvTab: React.FC<CctvTabProps> = ({
   }, [cctvIpUrl]);
 
   const cloudflareEmbedUrl = React.useMemo(() => {
+    // Jika diakses dari laptop lokal (localhost / 127.0.0.1), langsung tampilkan stream go2rtc lokal
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      return 'http://127.0.0.1:8889/stream.html?src=he_cctv&mode=mse';
+    }
+
     let raw = (cctvPublicUrl || cctvIpUrl || '').trim();
-    if (!raw || raw.includes('localhost') || raw.includes('127.0.0.1') || raw.includes('youtube')) {
-      raw = 'https://screenshot-night-assists-baseball.trycloudflare.com';
+    if (raw.includes('screenshot-night-assists-baseball') || raw.includes('youtube')) {
+      raw = '';
+    }
+    if (!raw) {
+      return 'http://127.0.0.1:8889/stream.html?src=he_cctv&mode=mse';
     }
     if (raw.includes('/stream.html')) return raw;
     return `${raw.replace(/\/+$/, '')}/stream.html?src=he_cctv&mode=mse`;

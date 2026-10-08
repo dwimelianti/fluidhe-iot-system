@@ -1201,11 +1201,11 @@ export default function FluidHEDashboard() {
   // ─── REAL CCTV & IP CAMERA STATES (EZVIZ C6N FULL INTEGRATION) ───
   const [selectedCamera, setSelectedCamera] = useState<'cam1' | 'cam2' | 'cam3'>('cam1');
   const [cctvRecording, setCctvRecording] = useState<boolean>(true);
-  const [cctvPublicUrl, setCctvPublicUrl] = useState<string>('https://screenshot-night-assists-baseball.trycloudflare.com');
-  const [cctvIpUrl, setCctvIpUrl] = useState<string>('https://screenshot-night-assists-baseball.trycloudflare.com/stream.html?src=he_cctv&mode=mse');
+  const [cctvPublicUrl, setCctvPublicUrl] = useState<string>('');
+  const [cctvIpUrl, setCctvIpUrl] = useState<string>('http://127.0.0.1:8889/stream.html?src=he_cctv&mode=mse');
   const [cctvStreamSource, setCctvStreamSource] = useState<'local' | 'custom' | 'demo'>('custom');
   const [isEditingCctvUrl, setIsEditingCctvUrl] = useState<boolean>(false);
-  const [tempCctvUrl, setTempCctvUrl] = useState<string>('https://screenshot-night-assists-baseball.trycloudflare.com');
+  const [tempCctvUrl, setTempCctvUrl] = useState<string>('');
 
   // Auto-detect Cloudflare tunnel URL (from API, localStorage, or query params)
   useEffect(() => {
@@ -1239,9 +1239,15 @@ export default function FluidHEDashboard() {
         setCctvStreamSource(isRemote ? 'custom' : 'local');
 
         const savedLocal = localStorage.getItem('fluidhe_cctv_public_url');
-        if (paramCctv) {
+        if (savedLocal && savedLocal.includes('screenshot-night-assists-baseball')) {
+          localStorage.removeItem('fluidhe_cctv_public_url');
+        }
+
+        if (isLocal) {
+          applyCctvUrl('http://127.0.0.1:8889');
+        } else if (paramCctv) {
           applyCctvUrl(paramCctv);
-        } else if (savedLocal) {
+        } else if (savedLocal && !savedLocal.includes('screenshot-night-assists-baseball')) {
           applyCctvUrl(savedLocal);
         }
 

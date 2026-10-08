@@ -13,7 +13,7 @@ webrtc:
 
 streams:
   he_cctv:
-    - "rtsp://admin:TJPCYS@192.168.1.2:554/Streaming/Channels/101"
+    - "rtsp://admin:TJPCYS@192.168.0.106:554/Streaming/Channels/101"
     - "ffmpeg:he_cctv#audio=opus"
 
 ffmpeg:
