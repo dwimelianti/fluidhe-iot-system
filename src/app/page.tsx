@@ -3333,16 +3333,18 @@ export default function FluidHEDashboard() {
 
         {/* Right Section: Status Badges & User Actions */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          {/* Interactive Guided Tour Button */}
-          <button
-            type="button"
-            onClick={() => setIsTourOpen(true)}
-            className="hidden sm:flex items-center gap-1 p-1.5 sm:px-3 sm:py-1 bg-gradient-to-r from-sky-50 to-indigo-50 hover:from-sky-100 hover:to-indigo-100 text-sky-800 border border-sky-200/80 rounded-full text-[10px] sm:text-xs font-extrabold shadow-xs transition active:scale-95 whitespace-nowrap cursor-pointer ring-1 ring-sky-500/10"
-            title="Buka Panduan Tutorial Interaktif"
-          >
-            <HelpCircle className="w-3.5 h-3.5 text-sky-600 animate-pulse" />
-            <span>Panduan</span>
-          </button>
+          {/* Interactive Guided Tour Button - Hanya muncul ketika sistem sudah AKTIF (bukan saat standby/inisialisasi) */}
+          {systemState === 'ACTIVE' && (
+            <button
+              type="button"
+              onClick={() => setIsTourOpen(true)}
+              className="hidden sm:flex items-center gap-1 p-1.5 sm:px-3 sm:py-1 bg-gradient-to-r from-sky-50 to-indigo-50 hover:from-sky-100 hover:to-indigo-100 text-sky-800 border border-sky-200/80 rounded-full text-[10px] sm:text-xs font-extrabold shadow-xs transition active:scale-95 whitespace-nowrap cursor-pointer ring-1 ring-sky-500/10"
+              title="Buka Panduan Tutorial Interaktif"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-sky-600 animate-pulse" />
+              <span>Panduan</span>
+            </button>
+          )}
 
           {/* ─── SYSTEM READINESS & STATUS BADGE (MATI / STANDBY / AKTIF) ─── */}
           <SystemStatusBadge

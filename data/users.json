@@ -19,7 +19,7 @@
       ],
       "allowedStartTime": "07:00",
       "allowedEndTime": "18:00",
-      "lastSeen": 1791345067860
+      "lastSeen": 0
     },
     {
       "id": "USR-02",
@@ -38,7 +38,7 @@
       ],
       "allowedStartTime": "07:00",
       "allowedEndTime": "18:00",
-      "lastSeen": 0
+      "lastSeen": 1791432902497
     },
     {
       "id": "USR-04",
