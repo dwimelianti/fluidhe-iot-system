@@ -13,14 +13,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const smtpUser = process.env.SMTP_USER || 'anugrahtriplecycle@gmail.com';
-    const smtpPass = (process.env.SMTP_PASS || 'zbwoavpuyibkxbgn').replace(/\s+/g, '');
+    const smtpHost = process.env.SMTP_HOST || 'mail.simhe-uad.id';
+    const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
+    const smtpUser = process.env.SMTP_USER || 'admin@simhe-uad.id';
+    const smtpPass = (process.env.SMTP_PASS || '').trim();
 
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
       auth: {
         user: smtpUser,
         pass: smtpPass
+      },
+      tls: {
+        rejectUnauthorized: false
       }
     });
 

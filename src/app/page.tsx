@@ -1368,8 +1368,8 @@ export default function FluidHEDashboard() {
       return true;
     };
 
-    // Prioritaskan telemetri real-time tercepat langsung dari sensor Supabase
-    if (supabaseTelemetry && isHardwareValid(supabaseTelemetry)) {
+    // Prioritaskan telemetri real-time tercepat langsung dari sensor Supabase HANYA JIKA HARDWARE ONLINE
+    if (isHardwareOnline && supabaseTelemetry && isHardwareValid(supabaseTelemetry)) {
       const isHeaterOn = supabaseTelemetry.heater_status === 'ON' || Boolean(supabaseControls?.heater_1_status || supabaseControls?.heater_2_status);
       return {
         timestamp: supabaseTelemetry.created_at
@@ -1395,14 +1395,7 @@ export default function FluidHEDashboard() {
       };
     }
 
-    // 2. Ambil point valid terakhir dari telemetryHistory
-    const validHistory = telemetryHistory.filter(
-      (pt) => (pt.ti1 > 0 || pt.ti2 > 0 || pt.ti3 > 0 || pt.ti4 > 0 || pt.pi1 > 0)
-    );
-    if (validHistory.length > 0) {
-      return validHistory[validHistory.length - 1];
-    }
-
+    // 2. Default state saat hardware offline: Seluruh pembacaan sensor adalah 0 (tidak ada data masuk)
     return {
       timestamp: new Date().toLocaleTimeString('id-ID'),
       ti1: 0,
@@ -1417,12 +1410,12 @@ export default function FluidHEDashboard() {
       pi4: 0,
       fc1: 0,
       fc2: 0,
-      tc1Setpoint: tc1Setpoint,
+      tc1Setpoint: supabaseControls?.target_temp || tc1Setpoint,
       heater1Active: false,
       heater2Active: false,
       mode: operationMode
     };
-  }, [isHardwareOnline, telemetryHistory, supabaseTelemetry, supabaseControls, tc1Setpoint, operationMode]);
+  }, [isHardwareOnline, supabaseTelemetry, supabaseControls, tc1Setpoint, operationMode]);
 
   const dualHeaterState = useMemo(() => {
     const isPrimed = fc1Valve > 0;
@@ -1656,13 +1649,21 @@ export default function FluidHEDashboard() {
 
     // Filter data hari ini agar riwayat telemetri akurat sesuai sesi berjalan dan bebas dari sinyal dummy
     const latestRow = streamToUse[streamToUse.length - 1];
-    const latestDateStr = latestRow.created_at ? new Date(latestRow.created_at).toDateString() : new Date().toDateString();
+    const todayStr = new Date().toDateString();
+    const latestRowDateStr = latestRow.created_at ? new Date(latestRow.created_at).toDateString() : '';
+
+    // Jika telemetri di database adalah arsip hari-hari sebelumnya dan bukan hari ini, jangan tampilkan sebagai kurva live hari ini
+    if (!latestRow.created_at || latestRowDateStr !== todayStr) {
+      setTelemetryHistory([]);
+      return;
+    }
+
     const filteredStream = streamToUse.filter((row) => {
       const ws = String(row.warning_status || '');
       if (ws.startsWith('CCTV_URL:') || ws.startsWith('PTZ_CMD:')) return false;
       if (row.temp_1 === 0 && row.temp_2 === 0 && row.temp_3 === 0 && row.temp_4 === 0 && row.pressure === 0 && ws !== 'NORMAL') return false;
       if (!row.created_at) return true;
-      return new Date(row.created_at).toDateString() === latestDateStr;
+      return new Date(row.created_at).toDateString() === todayStr;
     });
 
     const realHistory: TelemetryPoint[] = filteredStream.map((row) => {
@@ -3356,43 +3357,33 @@ export default function FluidHEDashboard() {
           <div
             id="tour-iot-badge"
             title={
-              supabaseStatus === 'ONLINE'
-                ? isHardwareOnline
-                  ? 'Alat laboratorium aktif mengirimkan data secara real-time.'
-                  : 'Menunggu pengiriman data dari alat laboratorium.'
-                : 'Koneksi cloud belum terhubung.'
+              isHardwareOnline
+                ? 'Alat laboratorium (ESP32) aktif mengirimkan data telemetri secara real-time.'
+                : 'ESP32 Offline - Data telemetri tidak masuk dari alat laboratorium.'
             }
-            className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold border transition whitespace-nowrap shrink-0 ${supabaseStatus === 'ONLINE'
-                ? isHardwareOnline
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                  : 'bg-amber-50 text-amber-800 border-amber-200'
+            className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold border transition whitespace-nowrap shrink-0 ${
+              isHardwareOnline
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs'
                 : supabaseStatus === 'CONNECTING'
-                  ? 'bg-amber-50 text-amber-800 border-amber-200'
-                  : 'bg-red-50 text-red-800 border-red-200'
-              }`}
+                  ? 'bg-amber-50 text-amber-800 border-amber-300 shadow-2xs'
+                  : 'bg-rose-50 text-rose-800 border-rose-300 shadow-2xs'
+            }`}
           >
             <span
-              className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${supabaseStatus === 'ONLINE'
-                  ? isHardwareOnline
-                    ? 'bg-emerald-500 animate-pulse'
-                    : 'bg-amber-500'
+              className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${
+                isHardwareOnline
+                  ? 'bg-emerald-500 animate-pulse'
                   : supabaseStatus === 'CONNECTING'
                     ? 'bg-amber-500 animate-ping'
-                    : 'bg-red-500'
-                }`}
+                    : 'bg-rose-500'
+              }`}
             />
-            <span className="hidden xs:inline sm:inline">
-              {supabaseStatus === 'ONLINE' ? (
-                isHardwareOnline ? (
-                  'ONLINE'
-                ) : (
-                  'OFFLINE'
-                )
-              ) : supabaseStatus === 'CONNECTING' ? (
-                'CONNECTING...'
-              ) : (
-                'OFFLINE'
-              )}
+            <span className="hidden xs:inline sm:inline font-extrabold tracking-wide">
+              {isHardwareOnline
+                ? 'ONLINE'
+                : supabaseStatus === 'CONNECTING'
+                  ? 'CONNECTING...'
+                  : 'OFFLINE'}
             </span>
           </div>
 
@@ -3721,6 +3712,7 @@ export default function FluidHEDashboard() {
               <LiveChart
                 telemetryHistory={telemetryHistory}
                 operatorSessionLimit={operatorSessionLimit}
+                isHardwareOnline={isHardwareOnline}
               />
 
               {/* 3. Interactive Digital Twin P&ID Visual Diagram */}

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Thermometer, Gauge, Activity, Loader2 } from 'lucide-react';
+import { Thermometer, Gauge, Activity, Loader2, WifiOff } from 'lucide-react';
 import { TelemetryPoint, TempLabels } from '@/types';
 
 interface TelemetryCardsProps {
@@ -77,7 +77,12 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
             </div>
 
             <div className="my-2 flex items-baseline gap-1.5 min-h-[38px]">
-              {hasHardwareData && latestData.ti1 <= 0 ? (
+              {!hasHardwareData ? (
+                <>
+                  <span className="text-2xl sm:text-3xl font-extrabold text-slate-400 tracking-tight">--</span>
+                  <span className="text-xs font-semibold text-slate-400">°C</span>
+                </>
+              ) : latestData.ti1 <= 0 ? (
                 <div className="flex items-center gap-1.5 text-amber-600">
                   <span className="text-sm font-extrabold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">Periksa Sensor</span>
                 </div>
@@ -93,9 +98,15 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
 
             <div className="pt-2 border-t border-slate-100/90 text-[10.5px] sm:text-[11px] text-slate-500 flex justify-between items-center gap-1">
               <span className="truncate">Target: {tc1Setpoint}°C</span>
-              <span className={`font-bold shrink-0 ${latestData.ti1 > ti1MaxThreshold ? 'text-red-600' : 'text-emerald-600'}`}>
-                {latestData.ti1 > ti1MaxThreshold ? 'Warning' : 'Optimal'}
-              </span>
+              {!hasHardwareData ? (
+                <span className="font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded text-[10px] border border-rose-200 shrink-0">
+                  Offline
+                </span>
+              ) : (
+                <span className={`font-bold shrink-0 ${latestData.ti1 > ti1MaxThreshold ? 'text-red-600' : 'text-emerald-600'}`}>
+                  {latestData.ti1 > ti1MaxThreshold ? 'Warning' : 'Optimal'}
+                </span>
+              )}
             </div>
           </div>
 
@@ -121,7 +132,12 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
           </div>
 
           <div className="my-2 flex items-baseline gap-1.5 min-h-[38px]">
-            {hasHardwareData && latestData.ti2 <= 0 ? (
+            {!hasHardwareData ? (
+              <>
+                <span className="text-2xl sm:text-3xl font-extrabold text-slate-400 tracking-tight">--</span>
+                <span className="text-xs font-semibold text-slate-400">°C</span>
+              </>
+            ) : latestData.ti2 <= 0 ? (
               <div className="flex items-center gap-1.5 text-amber-600">
                 <span className="text-sm font-extrabold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">Periksa Sensor</span>
               </div>
@@ -138,7 +154,7 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
           <div className="pt-2 border-t border-slate-100/90 text-[10.5px] sm:text-[11px] text-slate-500 flex justify-between items-center gap-1">
             <span className="truncate">Kenaikan Suhu:</span>
             <span className="font-bold shrink-0 text-slate-700">
-              +{Math.max(0, latestData.ti2 - latestData.ti3).toFixed(1)}°C
+              {hasHardwareData ? `+${Math.max(0, latestData.ti2 - latestData.ti3).toFixed(1)}°C` : '--'}
             </span>
           </div>
         </div>
@@ -165,7 +181,12 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
           </div>
 
           <div className="my-2 flex items-baseline gap-1.5 min-h-[38px]">
-            {hasHardwareData && latestData.ti3 <= 0 ? (
+            {!hasHardwareData ? (
+              <>
+                <span className="text-2xl sm:text-3xl font-extrabold text-slate-400 tracking-tight">--</span>
+                <span className="text-xs font-semibold text-slate-400">°C</span>
+              </>
+            ) : latestData.ti3 <= 0 ? (
               <div className="flex items-center gap-1.5 text-amber-600">
                 <span className="text-sm font-extrabold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">Periksa Sensor</span>
               </div>
@@ -181,7 +202,11 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
 
           <div className="pt-2 border-t border-slate-100/90 text-[10.5px] sm:text-[11px] text-slate-500 flex justify-between items-center gap-1">
             <span className="truncate">Air Dingin Lab:</span>
-            <span className="font-bold shrink-0 text-slate-700">Normal</span>
+            {hasHardwareData ? (
+              <span className="font-bold shrink-0 text-slate-700">Normal</span>
+            ) : (
+              <span className="font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded text-[10px] border border-rose-200 shrink-0">Offline</span>
+            )}
           </div>
         </div>
 
@@ -207,7 +232,12 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
           </div>
 
           <div className="my-2 flex items-baseline gap-1.5 min-h-[38px]">
-            {hasHardwareData && latestData.ti4 <= 0 ? (
+            {!hasHardwareData ? (
+              <>
+                <span className="text-2xl sm:text-3xl font-extrabold text-slate-400 tracking-tight">--</span>
+                <span className="text-xs font-semibold text-slate-400">°C</span>
+              </>
+            ) : latestData.ti4 <= 0 ? (
               <div className="flex items-center gap-1.5 text-amber-600">
                 <span className="text-sm font-extrabold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">Periksa Sensor</span>
               </div>
@@ -224,7 +254,7 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
           <div className="pt-2 border-t border-slate-100/90 text-[10.5px] sm:text-[11px] text-slate-500 flex justify-between items-center gap-1">
             <span className="truncate">Penurunan Suhu:</span>
             <span className="font-bold shrink-0 text-slate-700">
-              {Math.abs(latestData.ti1 - latestData.ti4).toFixed(1)}°C
+              {hasHardwareData ? `${Math.abs(latestData.ti1 - latestData.ti4).toFixed(1)}°C` : '--'}
             </span>
           </div>
         </div>
@@ -251,15 +281,24 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
           </div>
 
           <div className="my-2 flex items-baseline gap-1.5 min-h-[38px]">
-            <span className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight whitespace-nowrap">
-              {latestData.pi1.toFixed(2)} / {latestData.pi2.toFixed(2)}
-            </span>
-            <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">atm-g</span>
+            {!hasHardwareData ? (
+              <>
+                <span className="text-lg sm:text-2xl font-extrabold text-slate-400 tracking-tight whitespace-nowrap">-- / --</span>
+                <span className="text-xs font-semibold text-slate-400 whitespace-nowrap">atm-g</span>
+              </>
+            ) : (
+              <>
+                <span className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight whitespace-nowrap">
+                  {latestData.pi1.toFixed(2)} / {latestData.pi2.toFixed(2)}
+                </span>
+                <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">atm-g</span>
+              </>
+            )}
           </div>
 
           <div className="pt-2 border-t border-slate-100/90 text-[10.5px] sm:text-[11px] text-slate-500 flex justify-between items-center gap-1">
             <span className="truncate">ΔP Hot:</span>
-            <span className="font-bold shrink-0 text-sky-700">{deltaPHot} atm-g</span>
+            <span className="font-bold shrink-0 text-sky-700">{hasHardwareData ? `${deltaPHot} atm-g` : '--'}</span>
           </div>
         </div>
 
@@ -285,15 +324,24 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
           </div>
 
           <div className="my-2 flex items-baseline gap-1.5 min-h-[38px]">
-            <span className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight whitespace-nowrap">
-              {latestData.pi3.toFixed(2)} / {latestData.pi4.toFixed(2)}
-            </span>
-            <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">atm-g</span>
+            {!hasHardwareData ? (
+              <>
+                <span className="text-lg sm:text-2xl font-extrabold text-slate-400 tracking-tight whitespace-nowrap">-- / --</span>
+                <span className="text-xs font-semibold text-slate-400 whitespace-nowrap">atm-g</span>
+              </>
+            ) : (
+              <>
+                <span className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight whitespace-nowrap">
+                  {latestData.pi3.toFixed(2)} / {latestData.pi4.toFixed(2)}
+                </span>
+                <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">atm-g</span>
+              </>
+            )}
           </div>
 
           <div className="pt-2 border-t border-slate-100/90 text-[10.5px] sm:text-[11px] text-slate-500 flex justify-between items-center gap-1">
             <span className="truncate">ΔP Cold:</span>
-            <span className="font-bold shrink-0 text-cyan-700">{deltaPCold} atm-g</span>
+            <span className="font-bold shrink-0 text-cyan-700">{hasHardwareData ? `${deltaPCold} atm-g` : '--'}</span>
           </div>
         </div>
 
@@ -319,10 +367,19 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
           </div>
 
           <div className="my-2 flex items-baseline gap-1.5 min-h-[38px]">
-            <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              {latestData.fc1.toFixed(2)}
-            </span>
-            <span className="text-xs font-semibold text-slate-500">L/min</span>
+            {!hasHardwareData ? (
+              <>
+                <span className="text-2xl sm:text-3xl font-extrabold text-slate-400 tracking-tight">--</span>
+                <span className="text-xs font-semibold text-slate-400">L/min</span>
+              </>
+            ) : (
+              <>
+                <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                  {latestData.fc1.toFixed(2)}
+                </span>
+                <span className="text-xs font-semibold text-slate-500">L/min</span>
+              </>
+            )}
           </div>
 
           <div className="pt-2 border-t border-slate-100/90 text-[10.5px] sm:text-[11px] text-slate-500 flex justify-between items-center gap-1">
@@ -353,10 +410,19 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
           </div>
 
           <div className="my-2 flex items-baseline gap-1.5 min-h-[38px]">
-            <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              {latestData.fc2.toFixed(2)}
-            </span>
-            <span className="text-xs font-semibold text-slate-500">L/min</span>
+            {!hasHardwareData ? (
+              <>
+                <span className="text-2xl sm:text-3xl font-extrabold text-slate-400 tracking-tight">--</span>
+                <span className="text-xs font-semibold text-slate-400">L/min</span>
+              </>
+            ) : (
+              <>
+                <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                  {latestData.fc2.toFixed(2)}
+                </span>
+                <span className="text-xs font-semibold text-slate-500">L/min</span>
+              </>
+            )}
           </div>
 
           <div className="pt-2 border-t border-slate-100/90 text-[10.5px] sm:text-[11px] text-slate-500 flex justify-between items-center gap-1">
@@ -366,23 +432,23 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
         </div>
       </div>
 
-      {/* 1 Tampilan Terpusat Glassmorphism Blur saat Menunggu Jaringan */}
+      {/* 1 Tampilan Terpusat Glassmorphism saat Hardware Offline / Menunggu Jaringan */}
       {!hasHardwareData && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 bg-slate-900/10 backdrop-blur-[6px] rounded-3xl animate-fade-in pointer-events-auto">
-          <div className="bg-white/95 backdrop-blur-md border border-amber-200/90 shadow-2xl rounded-3xl px-6 py-6 sm:px-8 sm:py-7 flex flex-col items-center text-center max-w-md mx-auto transition-all animate-scale-up">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-100 to-orange-50 border border-amber-300/80 flex items-center justify-center mb-3.5 shadow-sm">
-              <Loader2 className="w-7 h-7 text-amber-600 animate-spin" />
+          <div className="bg-white/95 backdrop-blur-md border border-rose-200/90 shadow-2xl rounded-3xl px-6 py-6 sm:px-8 sm:py-7 flex flex-col items-center text-center max-w-md mx-auto transition-all animate-scale-up">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-rose-100 to-amber-50 border border-rose-300/80 flex items-center justify-center mb-3.5 shadow-sm">
+              <WifiOff className="w-7 h-7 text-rose-600" />
             </div>
-            <h4 className="text-base font-black text-slate-800 tracking-tight flex items-center gap-1.5">
-              Menunggu Jaringan IoT<span className="font-mono text-amber-600">{typingDots}</span>
+            <h4 className="text-base font-black text-slate-800 tracking-tight flex items-center gap-2">
+              ESP32 Offline (Data Tidak Masuk)
             </h4>
-            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed max-w-xs">
-              Sedang menghubungkan transmisi data telemetri mikrokontroler Heat Exchanger ke server real-time cloud.
+            <p className="text-xs text-slate-500 mt-2 leading-relaxed max-w-xs">
+              Mikrokontroler ESP32 laboratorium sedang tidak terhubung atau belum mengirimkan data telemetri. Nilai sensor disembunyikan demi menjaga kepastian pembacaan.
             </p>
             <div className="mt-4 flex items-center gap-2">
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-300/80 text-amber-800 text-[11px] font-extrabold uppercase tracking-wider shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-                Sinkronisasi Otomatis
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 border border-rose-300/80 text-rose-800 text-[11px] font-extrabold uppercase tracking-wider shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                Status: Hardware Offline
               </span>
             </div>
           </div>

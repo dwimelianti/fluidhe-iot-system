@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Activity, Clock, Sliders, ChevronDown } from 'lucide-react';
+import { Activity, Clock, Sliders, ChevronDown, WifiOff } from 'lucide-react';
 import { TelemetryPoint } from '@/types';
 
 interface LiveChartProps {
   telemetryHistory: TelemetryPoint[];
   operatorSessionLimit?: number;
+  isHardwareOnline?: boolean;
 }
 
 type ChannelKey = 'all' | 'ti1' | 'ti2' | 'ti3' | 'ti4';
@@ -103,7 +104,8 @@ function getAreaPath(points: { x: number; y: number }[], baselineY: number, minX
 
 export const LiveChart: React.FC<LiveChartProps> = ({
   telemetryHistory,
-  operatorSessionLimit = 60
+  operatorSessionLimit = 60,
+  isHardwareOnline = false
 }) => {
   const [activeChannel, setActiveChannel] = useState<ChannelKey>('all');
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
@@ -148,6 +150,13 @@ export const LiveChart: React.FC<LiveChartProps> = ({
     if (validMs.length > 0) {
       const maxMs = Math.max(...validMs);
       const latestDateStr = new Date(maxMs).toDateString();
+      const todayStr = new Date().toDateString();
+
+      // If user is in live mode and records are not from today, do not plot them as today's live curve
+      if (!userSelectedEnd && latestDateStr !== todayStr) {
+        return [];
+      }
+
       // Keep only points from the same date or recorded within recent 8 hours
       filteredList = withDates
         .filter(({ pt, timeMs }) => {
@@ -391,6 +400,17 @@ export const LiveChart: React.FC<LiveChartProps> = ({
                   : `Rentang: ${timeWindow.startTimeStr} - ${timeWindow.endTimeStr} WIB (${timeWindow.durationMin} Menit)`}
               </span>
             </span>
+
+            {/* Hardware Status Badge */}
+            {isHardwareOnline ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Live Telemetri
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-extrabold bg-rose-50 text-rose-800 border border-rose-200 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-rose-500" /> ESP Offline
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
             Visualisasi dinamika termal terkalibrasi per durasi praktikum (TI₁ - TI₄)
@@ -532,6 +552,19 @@ export const LiveChart: React.FC<LiveChartProps> = ({
 
       {/* SVG Canvas Area */}
       <div className="w-full overflow-x-auto relative rounded-2xl bg-gradient-to-b from-slate-50/50 to-white border border-slate-100 p-2">
+        {!isHardwareOnline && sortedHistory.length === 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/85 backdrop-blur-[2px] rounded-2xl z-10 p-4">
+            <div className="flex flex-col items-center text-center max-w-sm">
+              <div className="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mb-2 shadow-2xs">
+                <WifiOff className="w-5 h-5" />
+              </div>
+              <h5 className="text-sm font-extrabold text-slate-800">ESP32 Offline (Data Tidak Masuk)</h5>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Grafik telemetri live akan mulai digambar secara otomatis saat alat laboratorium dinyalakan dan mengirimkan data ke sistem.
+              </p>
+            </div>
+          </div>
+        )}
         <svg
           viewBox={`0 0 ${width} ${height}`}
           className="w-full h-58 min-w-[720px] font-sans overflow-visible select-none"

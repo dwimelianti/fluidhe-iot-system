@@ -107,11 +107,32 @@ export function useSupabaseIntegration() {
         const cleanTelemetry = initialTelemetry.filter(isHardwareTelemetryRow);
         if (cleanTelemetry.length > 0) {
           setTelemetryStream(cleanTelemetry);
-          setLatestTelemetry(cleanTelemetry[cleanTelemetry.length - 1]);
+          const lastRow = cleanTelemetry[cleanTelemetry.length - 1];
+          setLatestTelemetry(lastRow);
           setConnectionStatus('ONLINE');
-          setLastHardwareHeartbeat(Date.now());
-          setIsHardwareOnline(true);
+
+          // Verifikasi waktu riil paket terakhir: hanya tandai ONLINE jika paket dikirim dalam 12 detik terakhir
+          if (lastRow.created_at) {
+            const rowTime = new Date(lastRow.created_at).getTime();
+            const isFresh = !isNaN(rowTime) && (Date.now() - rowTime < 12000) && (rowTime - Date.now() < 12000);
+            if (isFresh) {
+              setLastHardwareHeartbeat(Date.now());
+              setIsHardwareOnline(true);
+            } else {
+              setLastHardwareHeartbeat(null);
+              setIsHardwareOnline(false);
+            }
+          } else {
+            setLastHardwareHeartbeat(null);
+            setIsHardwareOnline(false);
+          }
+        } else {
+          setIsHardwareOnline(false);
+          setLastHardwareHeartbeat(null);
         }
+      } else {
+        setIsHardwareOnline(false);
+        setLastHardwareHeartbeat(null);
       }
 
       // 2. Fetch initial device controls
@@ -196,13 +217,20 @@ export function useSupabaseIntegration() {
             setConnectionStatus('ONLINE');
             setErrorMessage(null);
 
-            // Periksa waktu dibuatnya telemetri (toleransi 25 detik)
+            // Periksa waktu dibuatnya telemetri (toleransi ketat 12 detik demi kepastian live data)
             if (latest.created_at) {
               const rowTime = new Date(latest.created_at).getTime();
-              if (!isNaN(rowTime) && Math.abs(Date.now() - rowTime) < 25000) {
+              const isFresh = !isNaN(rowTime) && (Date.now() - rowTime < 12000) && (rowTime - Date.now() < 12000);
+              if (isFresh) {
                 setLastHardwareHeartbeat(Date.now());
                 setIsHardwareOnline(true);
+              } else {
+                setLastHardwareHeartbeat(null);
+                setIsHardwareOnline(false);
               }
+            } else {
+              setLastHardwareHeartbeat(null);
+              setIsHardwareOnline(false);
             }
           }
         }
@@ -264,15 +292,6 @@ export function useSupabaseIntegration() {
               uap_interval_min: prev.uap_interval_min ?? 10,
             };
           });
-
-          // Check if updated_at is within last 15 seconds and NOT recently modified by web user
-          if (!isRecentlyUpdatedByUser && (data as any).updated_at) {
-            const updateTime = new Date((data as any).updated_at).getTime();
-            if (!isNaN(updateTime) && (Date.now() - updateTime < 15000)) {
-              setLastHardwareHeartbeat(Date.now());
-              setIsHardwareOnline(true);
-            }
-          }
         }
       });
     }, 2000);
@@ -352,14 +371,6 @@ export function useSupabaseIntegration() {
               };
             });
             setConnectionStatus('ONLINE');
-            if (!isRecentlyUpdatedByUser) {
-              const updatedAtStr = (updatedControls as any).updated_at;
-              const updateTime = updatedAtStr ? new Date(updatedAtStr).getTime() : Date.now();
-              if (!isNaN(updateTime) && (Date.now() - updateTime < 15000)) {
-                setLastHardwareHeartbeat(Date.now());
-                setIsHardwareOnline(true);
-              }
-            }
           }
         }
       )
@@ -373,10 +384,10 @@ export function useSupabaseIntegration() {
     };
   }, [initializeData]);
 
-  // Periodic heartbeat watchdog to mark hardware offline if no packet for > 25s
+  // Periodic heartbeat watchdog to mark hardware offline if no packet for > 12s
   useEffect(() => {
     const watchdog = setInterval(() => {
-      if (lastHardwareHeartbeat && (Date.now() - lastHardwareHeartbeat < 25000)) {
+      if (lastHardwareHeartbeat && (Date.now() - lastHardwareHeartbeat < 12000)) {
         setIsHardwareOnline(true);
       } else {
         setIsHardwareOnline(false);
