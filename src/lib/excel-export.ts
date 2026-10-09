@@ -60,6 +60,36 @@ export function applyAutoColumnWidths(
 }
 
 /**
+ * Download workbook safely in browser using Blob and <a> tag with fallback to XLSX.writeFile
+ */
+function downloadWorkbook(wb: XLSX.WorkBook, fileName: string): void {
+  try {
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      setTimeout(() => {
+        document.body.removeChild(anchor);
+        window.URL.revokeObjectURL(url);
+      }, 200);
+      return;
+    }
+  } catch (err) {
+    console.warn('Blob download failed, trying XLSX.writeFile:', err);
+  }
+
+  // Fallback
+  XLSX.writeFile(wb, fileName);
+}
+
+/**
  * ─── 1. EKSPOR SESI TUNGGAL DENGAN FORMAT PROFESIONAL & RAPI ───
  */
 export function exportSessionToExcel(
@@ -207,7 +237,7 @@ export function exportSessionToExcel(
     return { blob, fileName };
   }
 
-  XLSX.writeFile(wb, fileName);
+  downloadWorkbook(wb, fileName);
   return { fileName };
 }
 
@@ -398,6 +428,6 @@ export function exportMasterAllClassesExcel(
   XLSX.utils.book_append_sheet(wb, summaryWs, 'Ringkasan_Sesi');
 
   const fileName = `HE_MASTER_SEMUA_KELAS_${new Date().toISOString().slice(0, 10)}.xlsx`;
-  XLSX.writeFile(wb, fileName);
+  downloadWorkbook(wb, fileName);
   return fileName;
 }

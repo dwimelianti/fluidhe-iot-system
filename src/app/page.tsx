@@ -785,14 +785,40 @@ export default function FluidHEDashboard() {
   // ─── EXPORT CURRENT SESSION EXCEL HANDLER ───
   const handleExportCurrentSessionExcel = () => {
     const isCurrentSelected = selectedLogsSessionId === 'CURRENT' || (currentSession && selectedLogsSessionId === currentSession.id);
-    const sessionToExport = (isCurrentSelected && currentSession)
+    const baseSession = (isCurrentSelected && currentSession)
       ? currentSession
       : archivedSessions.find((s) => s.id === selectedLogsSessionId) || currentSession;
 
-    if (!sessionToExport || !sessionToExport.data || sessionToExport.data.length === 0) {
+    // Gunakan filteredLogsData (jika ada baris yang sedang ditampilkan di tabel) atau activeSessionData
+    const exportData = (filteredLogsData && filteredLogsData.length > 0)
+      ? filteredLogsData
+      : (activeSessionData && activeSessionData.length > 0)
+        ? activeSessionData
+        : (baseSession?.data && baseSession.data.length > 0)
+          ? baseSession.data
+          : telemetryHistory;
+
+    if (!exportData || exportData.length === 0) {
       triggerCctvToast('Tidak ada data telemetri pada sesi ini untuk diekspor', 'warning');
       return;
     }
+
+    const sessionToExport: SystemSession = {
+      id: baseSession?.id || (selectedLogsSessionId !== 'CURRENT' ? selectedLogsSessionId : `SES-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`),
+      title: baseSession?.title || 'Praktikum Heat Exchanger',
+      date: baseSession?.date || new Date().toISOString().slice(0, 10),
+      startTime: baseSession?.startTime || (exportData[0]?.timestamp ? exportData[0].timestamp.replace(/\./g, ':') : '-'),
+      endTime: baseSession?.endTime || (exportData[exportData.length - 1]?.timestamp ? exportData[exportData.length - 1].timestamp.replace(/\./g, ':') : '-'),
+      startTimeMs: baseSession?.startTimeMs || Date.now(),
+      operatorName: baseSession?.operatorName || currentUser?.name || 'Operator',
+      operatorEmail: baseSession?.operatorEmail || currentUser?.email,
+      operatorRole: baseSession?.operatorRole || (currentUser?.role as any) || 'operator',
+      classGroup: baseSession?.classGroup || currentUser?.name,
+      flowMode: baseSession?.flowMode || operationMode,
+      pointsCount: exportData.length,
+      data: exportData,
+      durationSeconds: baseSession?.durationSeconds || sessionDuration || (exportData.length * 2)
+    };
 
     try {
       const { fileName } = exportSessionToExcel(sessionToExport);
