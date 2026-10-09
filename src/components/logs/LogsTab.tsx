@@ -219,32 +219,6 @@ export const LogsTab: React.FC<LogsTabProps> = ({
           </div>
         )}
 
-        {/* System Inactive Notice if System is OFF and no active session */}
-        {systemStatus === 'OFF' && (
-          <div className="no-print print:hidden mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-500 text-white rounded-xl shrink-0">
-                <FileText className="w-5 h-5" />
-              </div>
-              <div>
-                <strong className="text-xs font-black text-amber-900 block">Sistem Belum Dimulai (Standby)</strong>
-                <p className="text-[11.5px] text-amber-800 mt-0.5">
-                  Pencatatan data praktikum saat ini dibekukan agar tidak bercampur. Klik <strong>Mulai Sesi Baru</strong> untuk memulai sesi praktikum bersih hari ini.
-                </p>
-              </div>
-            </div>
-            {onOpenStartup && (
-              <button
-                type="button"
-                onClick={onOpenStartup}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white text-xs font-extrabold rounded-xl shadow-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer shrink-0"
-              >
-                <Play className="w-3.5 h-3.5 fill-white" />
-                <span>Mulai Sesi Baru</span>
-              </button>
-            )}
-          </div>
-        )}
 
         {/* Report Overview Meta Box */}
         <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200/90 mb-6 space-y-1.5 text-xs">

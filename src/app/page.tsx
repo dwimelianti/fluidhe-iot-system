@@ -3306,18 +3306,18 @@ export default function FluidHEDashboard() {
                 : 'Mesin Belum Terhubung - Data telemetri tidak masuk dari mesin laboratorium.'
             }
             className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold border transition whitespace-nowrap shrink-0 ${isHardwareOnline
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs'
-                : supabaseStatus === 'CONNECTING'
-                  ? 'bg-amber-50 text-amber-800 border-amber-300 shadow-2xs'
-                  : 'bg-rose-50 text-rose-800 border-rose-300 shadow-2xs'
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs'
+              : supabaseStatus === 'CONNECTING'
+                ? 'bg-amber-50 text-amber-800 border-amber-300 shadow-2xs'
+                : 'bg-rose-50 text-rose-800 border-rose-300 shadow-2xs'
               }`}
           >
             <span
               className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${isHardwareOnline
-                  ? 'bg-emerald-500 animate-pulse'
-                  : supabaseStatus === 'CONNECTING'
-                    ? 'bg-amber-500 animate-ping'
-                    : 'bg-rose-500'
+                ? 'bg-emerald-500 animate-pulse'
+                : supabaseStatus === 'CONNECTING'
+                  ? 'bg-amber-500 animate-ping'
+                  : 'bg-rose-500'
                 }`}
             />
             <span className="hidden xs:inline sm:inline font-extrabold tracking-wide">
@@ -3345,7 +3345,7 @@ export default function FluidHEDashboard() {
           {isGuestMode && systemState !== 'ACTIVE' && (
             <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 bg-sky-50 text-sky-800 border border-sky-300 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap shrink-0 shadow-2xs">
               <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-sky-500 animate-pulse shrink-0" />
-              <span>Mode Tamu (Hanya Data)</span>
+              <span>Mode Tamu</span>
               <button
                 type="button"
                 onClick={() => setIsStartupModalOpen(true)}
@@ -3838,13 +3838,12 @@ export default function FluidHEDashboard() {
                     {/* Relative container holding control buttons with blur & overlay when offline */}
                     <div className="relative">
                       {/* Controls Grid */}
-                      <div className={`transition-all duration-300 ${
-                        !isSystemAndHardwareOnline
-                          ? isControlOfflineModalDismissed
-                            ? 'opacity-60 grayscale pointer-events-none select-none cursor-not-allowed'
-                            : 'opacity-40 grayscale pointer-events-none select-none blur-[2px]'
-                          : ''
-                      }`}>
+                      <div className={`transition-all duration-300 ${!isSystemAndHardwareOnline
+                        ? isControlOfflineModalDismissed
+                          ? 'opacity-60 grayscale pointer-events-none select-none cursor-not-allowed'
+                          : 'opacity-40 grayscale pointer-events-none select-none blur-[2px]'
+                        : ''
+                        }`}>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 sm:gap-4">
 
                           {/* Switch Control Mode (AUTO / MANUAL) */}
@@ -4030,8 +4029,8 @@ export default function FluidHEDashboard() {
                                   ) : (
                                     <span
                                       className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-md border ${supabaseControls.air_dingin
-                                          ? 'bg-sky-50 text-sky-700 border-sky-200 shadow-2xs'
-                                          : 'bg-slate-100 text-slate-600 border-slate-200'
+                                        ? 'bg-sky-50 text-sky-700 border-sky-200 shadow-2xs'
+                                        : 'bg-slate-100 text-slate-600 border-slate-200'
                                         }`}
                                     >
                                       {supabaseControls.air_dingin ? 'OPEN' : 'CLOSED'}
@@ -4045,8 +4044,8 @@ export default function FluidHEDashboard() {
                                       <span className="text-[11px] font-bold text-slate-700">Pasokan Air Dingin</span>
                                       <span
                                         className={`w-2.5 h-2.5 rounded-full ${supabaseControls.control_mode === 'AUTO' || supabaseControls.air_dingin
-                                            ? 'bg-sky-500 animate-pulse ring-2 ring-sky-200'
-                                            : 'bg-slate-300'
+                                          ? 'bg-sky-500 animate-pulse ring-2 ring-sky-200'
+                                          : 'bg-slate-300'
                                           }`}
                                       />
                                     </div>
@@ -4060,8 +4059,8 @@ export default function FluidHEDashboard() {
                                       }}
                                       disabled={emergencyStopped || !isSystemAndHardwareOnline}
                                       className={`w-full py-2 min-h-[38px] rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-98 ${supabaseControls.air_dingin
-                                          ? 'bg-slate-900 text-white hover:bg-slate-800'
-                                          : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                                        ? 'bg-slate-900 text-white hover:bg-slate-800'
+                                        : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
                                         }`}
                                     >
                                       <Power className="w-3.5 h-3.5 text-sky-500" />
@@ -4076,8 +4075,8 @@ export default function FluidHEDashboard() {
                                       </span>
                                       <span
                                         className={`font-black text-[10.5px] ${supabaseControls.control_mode === 'AUTO' || supabaseControls.air_dingin
-                                            ? 'text-sky-700'
-                                            : 'text-slate-500'
+                                          ? 'text-sky-700'
+                                          : 'text-slate-500'
                                           }`}
                                       >
                                         {supabaseControls.control_mode === 'AUTO' || supabaseControls.air_dingin ? 'AKTIF' : 'TERTUTUP'}
@@ -4142,12 +4141,12 @@ export default function FluidHEDashboard() {
                               Kontrol Panel Dibekukan
                             </h4>
                             <p className="text-xs text-rose-700 font-bold mt-0.5">
-                              {systemState !== 'ACTIVE' ? 'Sistem Mati (Sistem Sedang OFF)' : 'Mesin Tidak Aktif (Hardware Offline)'}
+                              {systemState !== 'ACTIVE' ? 'Sistem Mati' : 'Mesin Tidak Aktif (Hardware Offline)'}
                             </p>
                           </div>
                           <p className="text-[11px] sm:text-xs text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-200">
                             {systemState !== 'ACTIVE'
-                              ? 'Sistem Heat Exchanger sedang dimatikan (OFF). Silakan hidupkan sistem praktikum terlebih dahulu melalui tombol Nyalakan Sistem di bilah atas untuk mengaktifkan kendali dan menghindari trip listrik (jetrek).'
+                              ? 'Sistem Heat Exchanger sedang dimatikan. Silakan hidupkan sistem praktikum terlebih dahulu melalui tombol Nyalakan Sistem di bilah atas untuk mengaktifkan kendali dan menghindari trip listrik.'
                               : 'Semua tombol kendali pemanas, katup, dan pengaturan thermostat dikunci demi keselamatan sampai mesin menyala dan terhubung ke sistem.'}
                           </p>
                           <div className="flex items-center justify-center gap-1.5 text-[10.5px] font-bold text-slate-500">
