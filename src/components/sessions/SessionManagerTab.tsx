@@ -276,9 +276,6 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
                 <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
                   Kelola Arsip & Data Praktikum
                 </h1>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-sky-100 text-sky-800 border border-sky-200">
-                  Master Admin
-                </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
                 Kelola nama kelas/kelompok, perbarui judul modul, hapus sesi, dan ekspor laporan master
@@ -622,8 +619,8 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
                   {sessionToDelete.id === currentSession?.id ? 'Hentikan & Hapus Sesi Aktif?' : 'Hapus Sesi Praktikum?'}
                 </h3>
                 <p className="text-xs text-slate-500">
-                  {sessionToDelete.id === currentSession?.id 
-                    ? 'Sesi ini sedang aktif berjalan. Menghapus sesi ini akan menghentikan perekaman mesin dan menghapus seluruh datanya secara permanen.' 
+                  {sessionToDelete.id === currentSession?.id
+                    ? 'Sesi ini sedang aktif berjalan. Menghapus sesi ini akan menghentikan perekaman mesin dan menghapus seluruh datanya secara permanen.'
                     : 'Tindakan ini akan menghapus data permanen.'}
                 </p>
               </div>

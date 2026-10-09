@@ -34,6 +34,7 @@ export interface LoginScreenProps {
   showLoginPassword: boolean;
   setShowLoginPassword: (show: boolean) => void;
   handleLogin: () => void;
+  onGuestLogin?: () => void;
 
   // Reset Password Modal Props
   isResetModalOpen: boolean;
@@ -81,6 +82,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   showLoginPassword,
   setShowLoginPassword,
   handleLogin,
+  onGuestLogin,
   isResetModalOpen,
   setIsResetModalOpen,
   resetStep,
@@ -308,6 +310,29 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               Masuk ke Dashboard Lab
               <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
+
+            {/* Pemisah Garis Tipis & Masuk sebagai Tamu */}
+            {onGuestLogin && (
+              <div className="pt-2">
+                <div className="relative my-2.5 flex items-center justify-center">
+                  <div className="w-full border-t border-slate-200/90" />
+                  <span className="absolute bg-white px-2.5 text-[10px] font-medium text-slate-400">
+                    atau
+                  </span>
+                </div>
+
+                <div className="text-center pt-0.5">
+                  <button
+                    type="button"
+                    onClick={onGuestLogin}
+                    className="text-xs font-semibold text-slate-500 hover:text-sky-600 transition-colors cursor-pointer py-1 px-2 inline-flex items-center gap-1.5 rounded hover:bg-slate-50"
+                  >
+                    Masuk sebagai Tamu
+                    <span className="text-[10px] font-normal text-slate-400">(Hanya Pantau Data)</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </form>
         </div>
 

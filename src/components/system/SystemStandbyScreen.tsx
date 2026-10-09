@@ -9,7 +9,6 @@ import {
   Server,
   Thermometer,
   ShieldCheck,
-  FileSpreadsheet,
   FastForward,
   Activity,
   User,
@@ -22,7 +21,6 @@ export interface SystemStandbyScreenProps {
   operatorName: string;
   defaultFlowMode?: string;
   onStartSystem: (sessionTitle: string) => void;
-  onEnterGuestMode?: () => void;
   recentArchivesCount?: number;
 }
 
@@ -56,7 +54,7 @@ const STARTUP_STEPS: StepItem[] = [
     id: 4,
     label: 'Alokasi Wadah Sesi Praktikum Baru',
     detail: 'Mengisolasi perekaman data telemetri agar tidak tercampur.',
-    icon: FileSpreadsheet
+    icon: Sparkles
   }
 ];
 
@@ -65,7 +63,6 @@ export const SystemStandbyScreen: React.FC<SystemStandbyScreenProps> = ({
   operatorName,
   defaultFlowMode = 'Counter-Current',
   onStartSystem,
-  onEnterGuestMode,
   recentArchivesCount = 0
 }) => {
   const [sessionTitle, setSessionTitle] = useState<string>('');
@@ -124,7 +121,7 @@ export const SystemStandbyScreen: React.FC<SystemStandbyScreenProps> = ({
 
   return (
     <div className="min-h-[calc(100vh-65px)] w-full flex flex-col justify-between p-3 sm:p-6 md:p-8 bg-gradient-to-b from-[#90c5fd] via-[#3b82f6] to-[#1d4ed8] relative overflow-hidden font-sans text-slate-100 selection:bg-sky-400 selection:text-slate-900">
-      
+
       {/* ─── SOFT AMBIENT LIGHTING & TOP GLOW (SESUAI TEMA LOGIN FOTO 2) ─── */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[480px] bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.75)_0%,rgba(186,230,253,0.4)_40%,transparent_75%)] pointer-events-none z-0" />
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-sky-300/25 rounded-full blur-3xl pointer-events-none z-0" />
@@ -217,28 +214,16 @@ export const SystemStandbyScreen: React.FC<SystemStandbyScreenProps> = ({
                 </div>
               </div>
 
-              {/* Dual Action Buttons: 1. Memulai Sistem (dengan IoT) & 2. Login sebagai Tamu (Ambil Data Tanpa Mulai Alat) */}
-              <div className="pt-1 space-y-2">
+              {/* Action Button: Memulai Sistem */}
+              <div className="pt-1">
                 <button
                   type="button"
                   onClick={handleStart}
                   className="w-full py-3.5 sm:py-4 px-6 rounded-2xl text-xs sm:text-sm font-black text-white bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 shadow-lg shadow-blue-600/30 border border-sky-300/30 transition-all duration-200 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2.5 group ring-4 ring-sky-400/20"
                 >
                   <Play className="w-4 h-4 fill-white text-white group-hover:scale-110 transition-transform" />
-                  <span>MEMULAI SISTEM (DENGAN IOT)</span>
+                  <span>MEMULAI SISTEM</span>
                 </button>
-
-                {onEnterGuestMode && (
-                  <button
-                    type="button"
-                    onClick={onEnterGuestMode}
-                    className="w-full py-2 px-3 text-[11px] font-semibold text-slate-500 hover:text-sky-700 bg-white/70 hover:bg-white border border-slate-200/90 hover:border-sky-300/80 rounded-xl transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs hover:shadow-xs active:scale-[0.99]"
-                    title="Masuk sebagai tamu untuk melihat atau mengambil data tanpa mengaktifkan mesin & pemanas"
-                  >
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Login sebagai Tamu (Hanya Ambil Data Tanpa Mulai Alat)</span>
-                  </button>
-                )}
               </div>
             </div>
           ) : (
@@ -283,23 +268,21 @@ export const SystemStandbyScreen: React.FC<SystemStandbyScreenProps> = ({
                   return (
                     <div
                       key={step.id}
-                      className={`p-3 rounded-2xl border transition-all duration-300 flex items-center justify-between gap-3 ${
-                        isFinished
+                      className={`p-3 rounded-2xl border transition-all duration-300 flex items-center justify-between gap-3 ${isFinished
                           ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
                           : isCurrent
-                          ? 'bg-sky-50 border-sky-300 text-sky-950 shadow-xs'
-                          : 'bg-slate-50/60 border-slate-200/60 text-slate-400 opacity-60'
-                      }`}
+                            ? 'bg-sky-50 border-sky-300 text-sky-950 shadow-xs'
+                            : 'bg-slate-50/60 border-slate-200/60 text-slate-400 opacity-60'
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`p-2 rounded-xl border shrink-0 ${
-                            isFinished
+                          className={`p-2 rounded-xl border shrink-0 ${isFinished
                               ? 'bg-emerald-500 text-white border-emerald-400'
                               : isCurrent
-                              ? 'bg-sky-600 text-white border-sky-500 animate-pulse'
-                              : 'bg-white text-slate-400 border-slate-200'
-                          }`}
+                                ? 'bg-sky-600 text-white border-sky-500 animate-pulse'
+                                : 'bg-white text-slate-400 border-slate-200'
+                            }`}
                         >
                           <Icon className="w-4 h-4" />
                         </div>

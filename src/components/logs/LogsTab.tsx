@@ -162,11 +162,8 @@ export const LogsTab: React.FC<LogsTabProps> = ({
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <strong className="text-xs font-black text-sky-950 tracking-wide uppercase">
-                    Data Berkepanjangan Laboratorium (Master Admin)
+                    Data Berkepanjangan Laboratorium
                   </strong>
-                  <span className="hidden md:inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-200/80 text-sky-900 border border-sky-300">
-                    Akses Seluruh Kelas
-                  </span>
                 </div>
                 <p className="hidden md:block text-[11.5px] text-sky-800 mt-0.5">
                   Seluruh rekaman telemetri dari semua kelas dan kelompok tersimpan permanen di server untuk kebutuhan arsip kurikulum dan riset jangka panjang.
@@ -289,9 +286,8 @@ export const LogsTab: React.FC<LogsTabProps> = ({
 
         {/* Filter Controls Bar */}
         <div
-          className={`p-4 bg-white rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 ${
-            isAdmin ? 'lg:grid-cols-5' : 'lg:grid-cols-4'
-          } gap-4 mb-6 no-print shadow-sm`}
+          className={`p-4 bg-white rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 ${isAdmin ? 'lg:grid-cols-5' : 'lg:grid-cols-4'
+            } gap-4 mb-6 no-print shadow-sm`}
         >
           {/* Admin Class / Operator Filter (Khusus Admin) */}
           {isAdmin && setClassFilter && (

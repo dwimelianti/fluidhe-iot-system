@@ -2683,6 +2683,25 @@ export default function FluidHEDashboard() {
     } catch (e) { }
   };
 
+  const handleGuestLogin = () => {
+    const guestUser = {
+      name: 'Tamu Laboratorium',
+      email: 'guest@uad.ac.id',
+      role: 'operator' as UserRole
+    };
+    setCurrentUser(guestUser);
+    setIsGuestMode(true);
+    setSystemState('OFF');
+    setIsLoggedIn(true);
+    setActiveTab('dashboard');
+    try {
+      sessionStorage.setItem('fluidhe_auth_user', JSON.stringify(guestUser));
+      sessionStorage.setItem('fluidhe_is_logged_in', 'true');
+      localStorage.setItem('fluidhe_active_tab', 'dashboard');
+    } catch (e) { }
+    triggerSyncFeedback('Mode Tamu Aktif', 'Anda masuk dalam mode pemantauan data. Mesin & pemanas tetap non-aktif (aman).');
+  };
+
   const handleLogout = () => {
     stopSirenSound();
     setShowAlarmModal(false);
@@ -2984,6 +3003,7 @@ export default function FluidHEDashboard() {
         showLoginPassword={showLoginPassword}
         setShowLoginPassword={setShowLoginPassword}
         handleLogin={handleLogin}
+        onGuestLogin={handleGuestLogin}
         isResetModalOpen={isResetModalOpen}
         setIsResetModalOpen={setIsResetModalOpen}
         resetStep={resetStep}
@@ -3388,10 +3408,6 @@ export default function FluidHEDashboard() {
           operatorName={currentUser?.name || 'Operator'}
           defaultFlowMode={operationMode}
           onStartSystem={handleConfirmStartup}
-          onEnterGuestMode={() => {
-            setIsGuestMode(true);
-            triggerSyncFeedback('Mode Tamu Aktif', 'Anda masuk dalam mode pemantauan data. Mesin & pemanas tetap non-aktif (aman).');
-          }}
           recentArchivesCount={archivedSessions.length}
         />
       ) : (
