@@ -408,7 +408,7 @@ export const LiveChart: React.FC<LiveChartProps> = ({
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-extrabold bg-rose-50 text-rose-800 border border-rose-200 shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-rose-500" /> ESP Offline
+                <span className="w-2 h-2 rounded-full bg-rose-500" /> Mesin Offline
               </span>
             )}
           </div>

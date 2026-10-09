@@ -82,11 +82,6 @@ export const SteamValveControl: React.FC<SteamValveControlProps> = ({
           >
             <Power className="w-3.5 h-3.5 text-rose-500" />
             <span>{uapStatus ? 'Tutup Katup Uap' : 'Buka Katup Uap'}</span>
-            {isAuto && (
-              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 border border-sky-200">
-                Override Manual
-              </span>
-            )}
           </button>
         </div>
 

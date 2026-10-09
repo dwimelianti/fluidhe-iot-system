@@ -1,5 +1,29 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import fs from 'fs';
+import path from 'path';
+
+function getFreshEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  try {
+    const envPath = path.join(process.cwd(), '.env.local');
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, 'utf8');
+      content.split('\n').forEach((line) => {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#')) {
+          const eqIdx = trimmed.indexOf('=');
+          if (eqIdx > 0) {
+            const key = trimmed.slice(0, eqIdx).trim();
+            const val = trimmed.slice(eqIdx + 1).trim();
+            env[key] = val;
+          }
+        }
+      });
+    }
+  } catch (e) {}
+  return env;
+}
 
 export async function POST(request: Request) {
   try {
@@ -13,23 +37,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const smtpHost = process.env.SMTP_HOST || 'mail.simhe-uad.id';
-    const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
-    const smtpUser = process.env.SMTP_USER || 'admin@simhe-uad.id';
-    const smtpPass = (process.env.SMTP_PASS || '').trim();
-
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass
-      },
-      tls: {
-        rejectUnauthorized: false
-      }
-    });
+    const fresh = getFreshEnv();
+    const smtpHost = fresh.SMTP_HOST || process.env.SMTP_HOST || 'mx.mailspace.id';
+    const smtpPort = parseInt(fresh.SMTP_PORT || process.env.SMTP_PORT || '587', 10);
+    const smtpUser = fresh.SMTP_USER || process.env.SMTP_USER || 'admin@simhe-uad.id';
+    // Otomatis bersihkan jika ada spasi atau titik di akhir password
+    let smtpPass = (fresh.SMTP_PASS || process.env.SMTP_PASS || '').trim().replace(/\.+$/, '');
 
     let subject = '';
     let htmlContent = '';
@@ -105,22 +118,75 @@ export async function POST(request: Request) {
 
     const mailOptions = {
       from: `"FluidHE Lab Security" <${smtpUser}>`,
+      replyTo: smtpUser,
       to: email,
       subject: subject,
       html: htmlContent
     };
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`[send-otp] SUCCESS sending to ${email} (type: ${type}), messageId: ${info.messageId}`);
-    return NextResponse.json({
-      success: true,
-      method: 'SMTP',
-      message: `Email berhasil dikirimkan ke ${email}`
-    });
+    // 1. Coba kirim via Primary SMTP (Mailspace mx.mailspace.id)
+    if (smtpPass) {
+      try {
+        const primaryTransporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpPort === 465,
+          auth: {
+            user: smtpUser,
+            pass: smtpPass
+          },
+          connectionTimeout: 5000,
+          greetingTimeout: 5000,
+          tls: {
+            rejectUnauthorized: false
+          }
+        });
+
+        const info = await primaryTransporter.sendMail(mailOptions);
+        console.log(`[send-otp] SUCCESS via Mailspace SMTP to ${email} (type: ${type}), messageId: ${info.messageId}`);
+        return NextResponse.json({
+          success: true,
+          method: 'MAILSPACE_SMTP',
+          message: `Email berhasil dikirimkan ke ${email}`
+        });
+      } catch (primaryErr: any) {
+        console.warn(`[send-otp] Primary SMTP (${smtpHost}) gagal: ${primaryErr.message}. Beralih ke secondary relay otomatis...`);
+      }
+    }
+
+    // 2. Jalur Fail-Safe / Secondary Relay (Memastikan email SELALU terkirim ke inbox penerima)
+    try {
+      const fallbackTransporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: 'anugrahtriplecycle@gmail.com',
+          pass: 'zbwoavpuyibkxbgn'
+        }
+      });
+
+      const fallbackInfo = await fallbackTransporter.sendMail({
+        ...mailOptions,
+        from: `"FluidHE Lab Security" <${smtpUser}>`,
+        replyTo: smtpUser
+      });
+
+      console.log(`[send-otp] SUCCESS via Relay to ${email} (type: ${type}), messageId: ${fallbackInfo.messageId}`);
+      return NextResponse.json({
+        success: true,
+        method: 'VERIFIED_RELAY',
+        message: `Email berhasil dikirimkan ke ${email}`
+      });
+    } catch (fallbackErr: any) {
+      console.error('[send-otp] ERROR in fallback relay:', fallbackErr);
+      return NextResponse.json(
+        { success: false, message: fallbackErr.message || 'Gagal mengirim email.' },
+        { status: 500 }
+      );
+    }
   } catch (error: any) {
-    console.error('[send-otp] ERROR in send-otp API:', error);
+    console.error('[send-otp] Unhandled error:', error);
     return NextResponse.json(
-      { success: false, message: error.message || 'Gagal mengirim email.' },
+      { success: false, message: error.message || 'Terjadi kesalahan server.' },
       { status: 500 }
     );
   }

@@ -6,7 +6,7 @@
       "email": "anugrahtriplecycle@gmail.com",
       "role": "admin",
       "status": "Active",
-      "lastLogin": "2026-09-25T02:13:47.755Z",
+      "lastLogin": "2026-10-09T00:31:08.140Z",
       "isScheduleRestricted": false,
       "allowedStartDate": "2026-08-26",
       "allowedEndDate": "2026-08-31",
@@ -19,66 +19,7 @@
       ],
       "allowedStartTime": "07:00",
       "allowedEndTime": "18:00",
-      "lastSeen": 1791437582458
-    },
-    {
-      "id": "USR-02",
-      "name": "Operator 1",
-      "email": "dwimeliantiistiqomah55@gmail.com",
-      "role": "operator",
-      "status": "Active",
-      "lastLogin": "2026-09-24T04:15:57.856Z",
-      "isScheduleRestricted": false,
-      "allowedStartDate": "2026-09-05",
-      "allowedEndDate": "2026-09-05",
-      "allowedDays": [
-        "Minggu",
-        "Kamis",
-        "Jumat"
-      ],
-      "allowedStartTime": "07:00",
-      "allowedEndTime": "18:00",
-      "lastSeen": 0
-    },
-    {
-      "id": "USR-04",
-      "name": "Admin 2",
-      "email": "mr.winkyy23@gmail.com",
-      "role": "admin",
-      "status": "Active",
-      "lastLogin": "Belum Pernah",
-      "isScheduleRestricted": false,
-      "allowedStartDate": "2026-09-07",
-      "allowedEndDate": "2026-09-07",
-      "allowedDays": [
-        "Senin",
-        "Selasa",
-        "Rabu",
-        "Kamis",
-        "Jumat"
-      ],
-      "allowedStartTime": "07:00",
-      "allowedEndTime": "18:00"
-    },
-    {
-      "id": "USR-05",
-      "name": "Operator 2",
-      "email": "dapilsatudys@gmail.com",
-      "role": "operator",
-      "status": "Active",
-      "lastLogin": "Belum Pernah",
-      "isScheduleRestricted": true,
-      "allowedStartDate": "2026-09-17",
-      "allowedEndDate": "2026-09-18",
-      "allowedDays": [
-        "Senin",
-        "Selasa",
-        "Rabu",
-        "Kamis",
-        "Jumat"
-      ],
-      "allowedStartTime": "07:00",
-      "allowedEndTime": "18:00"
+      "lastSeen": 1791509864655
     },
     {
       "id": "USR-06",
@@ -92,34 +33,14 @@
     },
     {
       "id": "USR-07",
-      "name": "Operator B",
-      "email": "operator.b@itenas.ac.id",
-      "role": "operator",
-      "status": "Active",
-      "lastLogin": "Belum Pernah",
-      "isScheduleRestricted": false,
-      "lastSeen": 0
-    },
-    {
-      "id": "USR-08",
-      "name": "Admin B",
-      "email": "admin.b@itenas.ac.id",
-      "role": "admin",
-      "status": "Active",
-      "lastLogin": "Belum Pernah",
-      "isScheduleRestricted": false,
-      "lastSeen": 0
-    },
-    {
-      "id": "USR-09",
-      "name": "Operator Kelas B",
-      "email": "dwi.melianti@mhs.itenas.ac.id",
+      "name": "Operator",
+      "email": "dwimeliantiistiqomah55@gmail.com",
       "role": "operator",
       "status": "Active",
       "lastLogin": "Belum Pernah",
       "isScheduleRestricted": true,
-      "allowedStartDate": "2026-09-25",
-      "allowedEndDate": "2026-09-25",
+      "allowedStartDate": "2026-10-09",
+      "allowedEndDate": "2026-10-09",
       "allowedDays": [
         "Senin",
         "Selasa",
@@ -132,23 +53,12 @@
     }
   ],
   "passwords": {
-    "dwimeliantiistiqomah55@gmail.com": "Melchan5.",
     "admin@uad.ac.id": "admin123",
     "anugrahtriplecycle@gmail.com": "gsxjGzxe",
-    "mr.winkyy23@gmail.com": "ND4mKYxB",
-    "dapilsatudys@gmail.com": "tVj835DM",
     "admin.a@uad.ac.id": "1234.Admin",
     "Admin A": "1234.Admin",
-    "admin.b@itenas.ac.id": "zW8QDCw7",
-    "admin.b@uad.ac.id": "zW8QDCw7",
-    "Admin B": "zW8QDCw7",
-    "admin b": "zW8QDCw7",
-    "operator.b@itenas.ac.id": "emmrBXaG",
-    "operator.b@uad.ac.id": "emmrBXaG",
-    "Operator B": "emmrBXaG",
-    "operator b": "emmrBXaG",
-    "Operator Kelas B": "j7ytqgDU",
-    "operator kelas b": "j7ytqgDU",
-    "dwi.melianti@mhs.itenas.ac.id": "j7ytqgDU"
+    "dwimeliantiistiqomah55@gmail.com": "ABeegLdd",
+    "Operator": "ABeegLdd",
+    "operator": "ABeegLdd"
   }
 }

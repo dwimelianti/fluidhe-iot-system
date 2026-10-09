@@ -108,7 +108,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 }) => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#90c5fd] via-[#3b82f6] to-[#1d4ed8] flex flex-col justify-between p-2.5 sm:p-6 md:p-8 relative overflow-hidden font-sans text-slate-100 selection:bg-sky-400 selection:text-slate-900">
-      
+
       {/* ─── SOFT AMBIENT LIGHTING & TOP GLOW ─── */}
       {/* Soft Bright Top-Center Ambient Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[480px] bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.75)_0%,rgba(186,230,253,0.4)_40%,transparent_75%)] pointer-events-none z-0" />
@@ -141,7 +141,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         <div className="absolute top-8 right-8 w-56 sm:w-72 h-56 sm:h-72 rounded-[2.4rem] sm:rounded-[2.8rem] bg-gradient-to-tl from-white/25 via-white/10 to-transparent backdrop-blur-xl border border-white/40 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.3)] rotate-[10deg] opacity-90" />
       </div>
 
-      {/* ─── TOP HEADER (FLUIDHE KIRI + SCADA ONLINE KANAN - MOBILE & DESKTOP) ─── */}
+      {/* ─── TOP HEADER (FLUIDHE KIRI - MOBILE & DESKTOP) ─── */}
       <header className="flex justify-between items-center max-w-7xl mx-auto w-full z-10 gap-2 sm:gap-3 py-1">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className="flex items-center gap-2 sm:gap-3 sm:bg-white/40 sm:backdrop-blur-xl sm:border sm:border-white/65 sm:px-3.5 sm:py-2 sm:rounded-2xl sm:shadow-[0_8px_30px_rgba(0,0,0,0.08)] min-w-0">
@@ -156,19 +156,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             </div>
           </div>
         </div>
-
-        {/* Top-Right Ambient Status Capsule */}
-        <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-900/75 backdrop-blur-xl border border-white/30 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-[10px] sm:text-xs font-bold text-white shadow-xl shrink-0">
-          <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span className="text-slate-100 tracking-wide">SCADA Online</span>
-        </div>
       </header>
 
       {/* ─── MAIN HERO & LOGIN CONTAINER ─── */}
       <main className="max-w-md w-full mx-auto my-auto py-2 sm:py-4 z-10 relative">
         {/* Main Glassmorphic Card (Normal Size) */}
         <div className="p-5 sm:p-8 bg-white/95 backdrop-blur-2xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.6)] rounded-3xl sm:rounded-[2.5rem] border border-white relative overflow-hidden text-slate-900">
-          
+
           {/* Subtle Inner Glow Highlight */}
           <div className="absolute top-0 inset-x-0 h-20 sm:h-24 bg-gradient-to-b from-sky-100/50 to-transparent pointer-events-none rounded-t-3xl sm:rounded-t-[2.5rem]" />
 
@@ -291,14 +285,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               </div>
             )}
 
-            <div className={`p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border text-[10px] sm:text-xs flex items-start gap-2 leading-snug sm:leading-relaxed ${
-              selectedDemoRole === 'admin'
-                ? 'bg-emerald-50/90 border-emerald-100 text-emerald-800'
-                : 'bg-sky-50/90 border-sky-100 text-sky-800'
-            }`}>
-              <Info className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 mt-0.5 ${
-                selectedDemoRole === 'admin' ? 'text-emerald-600' : 'text-sky-600'
-              }`} />
+            <div className={`p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border text-[10px] sm:text-xs flex items-start gap-2 leading-snug sm:leading-relaxed ${selectedDemoRole === 'admin'
+              ? 'bg-emerald-50/90 border-emerald-100 text-emerald-800'
+              : 'bg-sky-50/90 border-sky-100 text-sky-800'
+              }`}>
+              <Info className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 mt-0.5 ${selectedDemoRole === 'admin' ? 'text-emerald-600' : 'text-sky-600'
+                }`} />
               <span>
                 {selectedDemoRole === 'admin'
                   ? 'Akses penuh kendali hardware, verifikasi alarm & pemantauan CCTV.'
@@ -308,11 +300,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
             <button
               type="submit"
-              className={`w-full py-2.5 sm:py-3 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg transition-all transform active:scale-[0.98] flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
-                selectedDemoRole === 'admin'
-                  ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-700 hover:to-cyan-700 shadow-emerald-500/25'
-                  : 'bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 shadow-sky-500/25'
-              }`}
+              className={`w-full py-2.5 sm:py-3 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg transition-all transform active:scale-[0.98] flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${selectedDemoRole === 'admin'
+                ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-700 hover:to-cyan-700 shadow-emerald-500/25'
+                : 'bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 shadow-sky-500/25'
+                }`}
             >
               Masuk ke Dashboard Lab
               <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -330,6 +321,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       <footer className="hidden sm:block text-center text-xs text-white/70 z-10 py-2.5 px-4 leading-relaxed font-medium">
         © 2026 Heat Exchanger Control System • Universitas Ahmad Dahlan
       </footer>
+
+      {/* ─── TRIPLECYCLE BRANDING BADGE (Pengganti Indikator Next.js di Pojok Kiri Bawah - Ukuran Sama dengan Dashboard) ─── */}
+      <div
+        className="fixed bottom-3.5 left-3 sm:bottom-4 sm:left-4 z-30 select-none group pointer-events-auto"
+        title="TripleCycle System"
+      >
+        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white shadow-[0_8px_25px_-4px_rgba(0,0,0,0.25)] border-2 border-slate-200/90 hover:border-sky-400 transition-all duration-300 transform group-hover:scale-110 group-hover:shadow-[0_12px_30px_-4px_rgba(0,0,0,0.35)] flex items-center justify-center overflow-hidden">
+          <img
+            src="/triplecycle-logo.png"
+            alt="TripleCycle Logo"
+            className="w-full h-full object-contain p-1 rounded-full"
+          />
+        </div>
+      </div>
 
       {/* ─── SECURE EMAIL OTP PASSWORD RESET MODAL ─── */}
       {isResetModalOpen && (
@@ -431,7 +436,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   <div className="w-full">
                     <span>Kode verifikasi 6-digit telah dikirim ke: <strong>{resetEmailInput}</strong>.</span>
                     <p className="text-[11px] text-emerald-700 mt-0.5">Buka email Anda, lalu masukkan 6-digit kode OTP.</p>
-                    
+
                     <div className="mt-2 pt-2 border-t border-emerald-200/70 flex items-center justify-between">
                       <span className="text-[11px] text-slate-600 flex items-center gap-1 font-medium">
                         <Clock className="w-3.5 h-3.5 text-slate-500" /> Batas Waktu OTP:
@@ -544,10 +549,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     <div className="flex justify-between items-center text-[11px]">
                       <span className="font-bold text-slate-600">Kekuatan Keamanan Sandi:</span>
                       <span className={`font-black ${strength.score <= 1
-                          ? 'text-rose-600'
-                          : strength.score <= 3
-                            ? 'text-amber-600'
-                            : 'text-emerald-600'
+                        ? 'text-rose-600'
+                        : strength.score <= 3
+                          ? 'text-amber-600'
+                          : 'text-emerald-600'
                         }`}>
                         {strength.score <= 1 ? 'Sangat Lemah' : strength.score <= 3 ? 'Sedang' : 'Kuat & Aman ✓'}
                       </span>

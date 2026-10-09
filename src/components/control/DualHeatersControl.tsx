@@ -282,7 +282,7 @@ export const DualHeatersControl: React.FC<DualHeatersControlProps> = ({
               <div className="flex items-center gap-1.5 shrink-0">
                 <span
                   className={`px-2 py-0.5 rounded-md font-black text-[10.5px] border ${isH1On
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      ? 'bg-sky-50 text-sky-700 border-sky-200'
                       : 'bg-slate-100 text-slate-600 border-slate-200'
                     }`}
                 >
@@ -314,7 +314,7 @@ export const DualHeatersControl: React.FC<DualHeatersControlProps> = ({
               className={`w-full py-2.5 min-h-[42px] rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-98 ${isAuto
                   ? 'bg-slate-800 text-white opacity-90 cursor-not-allowed'
                   : isH1On
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20'
+                    ? 'bg-sky-600 hover:bg-sky-700 text-white shadow-sky-500/20'
                     : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
                 }`}
             >
@@ -325,7 +325,7 @@ export const DualHeatersControl: React.FC<DualHeatersControlProps> = ({
               )}
               <span>
                 {isSyncingH1
-                  ? 'Mengirim ke ESP...'
+                  ? 'Mengirim ke Mesin...'
                   : isAuto
                     ? 'Dikelola Otomatis'
                     : isH1On
@@ -343,7 +343,7 @@ export const DualHeatersControl: React.FC<DualHeatersControlProps> = ({
               </span>
               <span
                 className={`text-[10px] font-extrabold px-2 py-0.5 rounded border ${isH1On
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    ? 'bg-sky-50 text-sky-700 border-sky-200'
                     : 'bg-slate-100 text-slate-600 border-slate-200'
                   }`}
               >
@@ -410,7 +410,7 @@ export const DualHeatersControl: React.FC<DualHeatersControlProps> = ({
               )}
               <span>
                 {isSyncingH2
-                  ? 'Mengirim ke ESP...'
+                  ? 'Mengirim ke Mesin...'
                   : isAuto
                     ? 'Dikelola Suhu'
                     : isH2On
@@ -461,8 +461,8 @@ export const DualHeatersControl: React.FC<DualHeatersControlProps> = ({
                 <span>Mengirim ke Mesin...</span>
               </div>
             ) : (
-              <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-[10px]">
-                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+              <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 font-bold text-[10px]">
+                <CheckCircle2 className="w-3 h-3 text-sky-600" />
                 <span>Tersinkron ke Mesin</span>
               </div>
             )}

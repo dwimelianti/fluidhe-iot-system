@@ -294,12 +294,13 @@ export default function FluidHEDashboard() {
     setActiveTabState(tab);
     try {
       localStorage.setItem('fluidhe_active_tab', tab);
-    } catch (e) {}
+    } catch (e) { }
   }, []);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isTourOpen, setIsTourOpen] = useState<boolean>(false);
   const [isCloudDriveModalOpen, setIsCloudDriveModalOpen] = useState<boolean>(false);
+  const [isControlOfflineModalDismissed, setIsControlOfflineModalDismissed] = useState<boolean>(false);
   const [cloudLastSyncTime, setCloudLastSyncTime] = useState<string>(new Date().toLocaleTimeString('id-ID'));
   useEffect(() => {
     try {
@@ -368,6 +369,7 @@ export default function FluidHEDashboard() {
   const [isLogoutConfirmModalOpen, setIsLogoutConfirmModalOpen] = useState<boolean>(false);
   const [isLoggingOutWithShutdown, setIsLoggingOutWithShutdown] = useState<boolean>(false);
   const [selectedLogsSessionId, setSelectedLogsSessionId] = useState<string>('CURRENT');
+  const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
 
   // Role-based Master Classes Filtering (Admin can view all classes or filter per class)
   const [classFilter, setClassFilter] = useState<string>('ALL');
@@ -415,7 +417,7 @@ export default function FluidHEDashboard() {
       try {
         localStorage.removeItem('fluidhe_auth_user');
         localStorage.removeItem('fluidhe_is_logged_in');
-      } catch (e) {}
+      } catch (e) { }
 
       // 1. Sinkronkan status autentikasi dari sessionStorage (hanya aktif per tab yang sedang dibuka, aman saat reload F5)
       const savedAuth = sessionStorage.getItem('fluidhe_auth_user');
@@ -427,7 +429,7 @@ export default function FluidHEDashboard() {
             setCurrentUser(parsedUser);
             setIsLoggedIn(true);
           }
-        } catch (e) {}
+        } catch (e) { }
       }
 
       // 2. Pulihkan tab aktif terakhir
@@ -477,7 +479,7 @@ export default function FluidHEDashboard() {
             try {
               localStorage.removeItem('fluidhe_current_session');
               localStorage.setItem('fluidhe_system_state', 'OFF');
-            } catch (e) {}
+            } catch (e) { }
           }
         } catch (err) {
           console.warn('Gagal memulihkan sesi aktif dari localStorage:', err);
@@ -521,7 +523,7 @@ export default function FluidHEDashboard() {
     if (isMounted) {
       try {
         localStorage.setItem('fluidhe_ti1_max_threshold', String(ti1MaxThreshold));
-      } catch (e) {}
+      } catch (e) { }
     }
   }, [ti1MaxThreshold, isMounted]);
 
@@ -529,7 +531,7 @@ export default function FluidHEDashboard() {
     if (isMounted) {
       try {
         localStorage.setItem('fluidhe_deltap_max_threshold', String(deltaPMaxThreshold));
-      } catch (e) {}
+      } catch (e) { }
     }
   }, [deltaPMaxThreshold, isMounted]);
 
@@ -537,7 +539,7 @@ export default function FluidHEDashboard() {
     if (isMounted) {
       try {
         localStorage.setItem('fluidhe_sound_enabled', String(soundEnabled));
-      } catch (e) {}
+      } catch (e) { }
     }
   }, [soundEnabled, isMounted]);
 
@@ -572,7 +574,7 @@ export default function FluidHEDashboard() {
         setSystemState('ACTIVE');
         try {
           localStorage.setItem('fluidhe_system_state', 'ACTIVE');
-        } catch (e) {}
+        } catch (e) { }
 
         // Buat atau pulihkan wadah sesi jika belum ada
         setCurrentSession((prev) => {
@@ -602,8 +604,8 @@ export default function FluidHEDashboard() {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ session: autoSession })
-            }).catch(() => {});
-          } catch (e) {}
+            }).catch(() => { });
+          } catch (e) { }
           return autoSession;
         });
       }
@@ -612,7 +614,7 @@ export default function FluidHEDashboard() {
         setSystemState('OFF');
         try {
           localStorage.setItem('fluidhe_system_state', 'OFF');
-        } catch (e) {}
+        } catch (e) { }
       }
     }
   }, [
@@ -651,6 +653,7 @@ export default function FluidHEDashboard() {
 
     setCurrentSession(newSession);
     setSystemState('ACTIVE');
+    setIsGuestMode(false);
     setSessionDuration(0);
     setSelectedLogsSessionId('CURRENT');
     setIsStartupModalOpen(false);
@@ -663,7 +666,7 @@ export default function FluidHEDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session: newSession })
       });
-    } catch (e) {}
+    } catch (e) { }
 
     // Kirim perintah aktifasi serentak ke database & ESP32
     await handleSystemStart(mode);
@@ -685,12 +688,12 @@ export default function FluidHEDashboard() {
     const today = now.toISOString().slice(0, 10);
     const finalSession: SystemSession | null = currentSession
       ? {
-          ...currentSession,
-          endTime: now.toLocaleTimeString('id-ID'),
-          endTimeMs: Date.now(),
-          durationSeconds: sessionDuration,
-          pointsCount: currentSession.data.length
-        }
+        ...currentSession,
+        endTime: now.toLocaleTimeString('id-ID'),
+        endTimeMs: Date.now(),
+        durationSeconds: sessionDuration,
+        pointsCount: currentSession.data.length
+      }
       : null;
 
     if (finalSession) {
@@ -719,7 +722,7 @@ export default function FluidHEDashboard() {
     try {
       localStorage.setItem('fluidhe_system_state', 'OFF');
       localStorage.removeItem('fluidhe_current_session');
-    } catch (e) {}
+    } catch (e) { }
 
     setTimeout(() => {
       setSystemState('OFF');
@@ -746,21 +749,21 @@ export default function FluidHEDashboard() {
           await fetch(`/api/supabase/telemetry?minTime=${encodeURIComponent(minTime)}&maxTime=${encodeURIComponent(maxTime)}`, {
             method: 'DELETE'
           });
-        } catch (e) {}
+        } catch (e) { }
       }
       // Hapus sesi aktif dari database server master
       try {
         await fetch(`/api/sessions?sessionId=${encodeURIComponent(currentSession.id)}&role=admin`, {
           method: 'DELETE'
         });
-      } catch (e) {}
+      } catch (e) { }
     }
 
     // 2. Matikan aktuator & pemanas secara aman
     setHeaterMasterPower(false);
     try {
       await handleSystemShutdown();
-    } catch (e) {}
+    } catch (e) { }
 
     // 3. Reset state & storage
     setCurrentSession(null);
@@ -770,7 +773,7 @@ export default function FluidHEDashboard() {
     try {
       localStorage.setItem('fluidhe_system_state', 'OFF');
       localStorage.removeItem('fluidhe_current_session');
-    } catch (e) {}
+    } catch (e) { }
 
     triggerSyncFeedback('Sesi Aktif Dikosongkan', 'Sesi berjalan telah dihentikan dan seluruh data telemetrinya dibersihkan.');
   };
@@ -864,22 +867,8 @@ export default function FluidHEDashboard() {
   const DEFAULT_PASSWORDS: Record<string, string> = {
     'admin@uad.ac.id': 'admin123',
     'anugrahtriplecycle@gmail.com': 'admin123',
-    'operator@uad.ac.id': 'operator123',
-    'dev@uad.ac.id': 'dev123',
     'admin.a@uad.ac.id': '1234.Admin',
-    'admin a': '1234.Admin',
-    'Admin A': '1234.Admin',
-    'admin.b@itenas.ac.id': 'zW8QDCw7',
-    'admin.b@uad.ac.id': 'zW8QDCw7',
-    'admin b': 'zW8QDCw7',
-    'Admin B': 'zW8QDCw7',
-    'operator.b@itenas.ac.id': 'emmrBXaG',
-    'operator.b@uad.ac.id': 'emmrBXaG',
-    'operator b': 'emmrBXaG',
-    'Operator B': 'emmrBXaG',
-    'dwi.melianti@mhs.itenas.ac.id': 'dfCXY6JJ',
-    'operator kelas a': 'dfCXY6JJ',
-    'Operator Kelas A': 'dfCXY6JJ'
+    'Admin A': '1234.Admin'
   };
   const [userPasswords, setUserPasswords] = useState<Record<string, string>>(DEFAULT_PASSWORDS);
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -909,7 +898,7 @@ export default function FluidHEDashboard() {
       if (data.success && Array.isArray(data.users)) {
         setUsersList(data.users);
         if (data.passwords) {
-          setUserPasswords((prev) => ({ ...prev, ...data.passwords }));
+          setUserPasswords(data.passwords);
         }
       }
     } catch (e) {
@@ -1060,28 +1049,9 @@ export default function FluidHEDashboard() {
       randomPassword += chars.charAt(Math.floor(Math.random() * chars.length));
     }
 
-    const newUser: UserItem = {
-      id: `USR-0${usersList.length + 1}`,
-      name: newUserName.trim(),
-      email: email,
-      role: newUserRole,
-      status: 'Active',
-      lastLogin: 'Belum Pernah',
-      isScheduleRestricted: newUserRole === 'operator' ? newUserRestricted : false,
-      allowedStartDate: newUserStartDate || todayStr,
-      allowedEndDate: newUserEndDate || todayStr,
-      allowedDays: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'],
-      allowedStartTime: newUserStartTime || '07:00',
-      allowedEndTime: newUserEndTime || '18:00'
-    };
+    setIsAddingUser(true);
 
-    const updatedUsers = [...usersList, newUser];
-    setUsersList(updatedUsers);
-
-    const updatedPasswords = { ...userPasswords, [email]: randomPassword };
-    setUserPasswords(updatedPasswords);
-
-    // Save to Central Server API
+    // Save to Central Server API first
     try {
       const apiRes = await fetch('/api/users', {
         method: 'POST',
@@ -1099,14 +1069,27 @@ export default function FluidHEDashboard() {
         })
       });
       const apiData = await apiRes.json();
-      if (apiData.success && Array.isArray(apiData.users)) {
-        setUsersList(apiData.users);
-        if (apiData.passwords) {
-          setUserPasswords((prev) => ({ ...prev, ...apiData.passwords }));
-        }
+      if (!apiData.success) {
+        setAddUserError(apiData.error || `Gagal mendaftarkan email ${email}`);
+        setIsAddingUser(false);
+        fetchUsersFromServer();
+        return;
       }
-    } catch (err) {
+
+      if (Array.isArray(apiData.users)) {
+        setUsersList(apiData.users);
+        try {
+          localStorage.setItem('fluidhe_user_accounts', JSON.stringify(apiData.users));
+        } catch (e) { }
+      }
+      if (apiData.passwords) {
+        setUserPasswords(apiData.passwords);
+      }
+    } catch (err: any) {
       console.error('Failed to save user to server API', err);
+      setAddUserError('Gagal menghubungi server database.');
+      setIsAddingUser(false);
+      return;
     }
 
     setLastCreatedUserCredentials({
@@ -1116,9 +1099,9 @@ export default function FluidHEDashboard() {
       role: newUserRole
     });
 
-    setIsAddingUser(true);
+    // Send credentials to email
     try {
-      await fetch('/api/send-otp', {
+      const emailRes = await fetch('/api/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1129,8 +1112,15 @@ export default function FluidHEDashboard() {
           role: newUserRole
         })
       });
+      const emailData = await emailRes.json();
+      if (emailData.success) {
+        triggerCctvToast(`Kredensial berhasil dikirim ke email: ${email}`, 'success');
+      } else {
+        triggerCctvToast(`User dibuat, namun peringatan email: ${emailData.message || 'Gagal kirim'}`, 'warning');
+      }
     } catch (err) {
       console.error('Failed to send welcome email', err);
+      triggerCctvToast(`Gagal mengirim email kredensial ke ${email}`, 'warning');
     } finally {
       setIsAddingUser(false);
     }
@@ -1269,7 +1259,7 @@ export default function FluidHEDashboard() {
               }
             }
           })
-          .catch(() => {});
+          .catch(() => { });
 
         // 2. Cadangan: Tarik dari internal proxy /api/cctv/tunnel
         fetch('/api/cctv/tunnel')
@@ -1279,7 +1269,7 @@ export default function FluidHEDashboard() {
               applyCctvUrl(data.publicUrl);
             }
           })
-          .catch(() => {});
+          .catch(() => { });
 
         if (paramTab === 'cctv') {
           setActiveTab('cctv');
@@ -1392,8 +1382,9 @@ export default function FluidHEDashboard() {
         pi2: supabaseTelemetry.pressure_outlet !== undefined ? parseFloat(Number(supabaseTelemetry.pressure_outlet).toFixed(2)) : parseFloat((Number(supabaseTelemetry.pressure || 0) * 0.82).toFixed(2)),
         pi3: supabaseTelemetry.pressure_inlet_2 !== undefined ? parseFloat(Number(supabaseTelemetry.pressure_inlet_2).toFixed(2)) : parseFloat((Number(supabaseTelemetry.pressure || 0) * 0.90).toFixed(2)),
         pi4: supabaseTelemetry.pressure_outlet_2 !== undefined ? parseFloat(Number(supabaseTelemetry.pressure_outlet_2).toFixed(2)) : parseFloat((Number(supabaseTelemetry.pressure || 0) * 0.72).toFixed(2)),
-        fc1: parseFloat(Number(supabaseTelemetry.flow_rate || 0).toFixed(2)),
-        fc2: supabaseTelemetry.flow_rate_2 !== undefined ? parseFloat(Number(supabaseTelemetry.flow_rate_2).toFixed(2)) : parseFloat((Number(supabaseTelemetry.flow_rate || 0) * 1.15).toFixed(2)),
+        // Nilai sensor debit hardware: flow_rate_2 adalah panas (FC1), flow_rate adalah dingin (FC2)
+        fc1: supabaseTelemetry.flow_rate_2 !== undefined ? parseFloat(Number(supabaseTelemetry.flow_rate_2).toFixed(2)) : parseFloat(Number(supabaseTelemetry.flow_rate || 0).toFixed(2)),
+        fc2: parseFloat(Number(supabaseTelemetry.flow_rate || 0).toFixed(2)),
         tc1Setpoint: supabaseControls?.target_temp || tc1Setpoint,
         heater1Active: Boolean(supabaseControls?.heater_1_status ?? isHeaterOn),
         heater2Active: Boolean(supabaseControls?.heater_2_status ?? isHeaterOn),
@@ -1472,7 +1463,7 @@ export default function FluidHEDashboard() {
         h2: true,
         stage: 'STAGE_1',
         powerWatt: 1500,
-        description: `AUTO (ESP32): Kedua Heater ON (Suhu ${avgTempPanas.toFixed(1)}°C ≤ ${targetLower}°C)`
+        description: `AUTO (Mesin): Kedua Heater ON (Suhu ${avgTempPanas.toFixed(1)}°C ≤ ${targetLower}°C)`
       };
     } else if (avgTempPanas <= targetUpper) {
       // Suhu targetLower - targetUpper: Heater 1 Aktif (1000W), Heater 2 Dimatikan
@@ -1481,7 +1472,7 @@ export default function FluidHEDashboard() {
         h2: false,
         stage: 'STAGE_2',
         powerWatt: 1000,
-        description: `AUTO (ESP32): Heater 1 ON, Heater 2 OFF (Suhu ${avgTempPanas.toFixed(1)}°C: ${targetLower}°C - ${targetUpper}°C)`
+        description: `AUTO (Mesin): Heater 1 ON, Heater 2 OFF (Suhu ${avgTempPanas.toFixed(1)}°C: ${targetLower}°C - ${targetUpper}°C)`
       };
     } else {
       // Suhu > targetUpper: Melebihi batas atas -> Kedua Heater AUTO MATI
@@ -1490,7 +1481,7 @@ export default function FluidHEDashboard() {
         h2: false,
         stage: 'OFF',
         powerWatt: 0,
-        description: `AUTO (ESP32): Kedua Heater Auto-MATI (Suhu ${avgTempPanas.toFixed(1)}°C > ${targetUpper}°C Melebihi Batas)`
+        description: `AUTO (Mesin): Kedua Heater Auto-MATI (Suhu ${avgTempPanas.toFixed(1)}°C > ${targetUpper}°C Melebihi Batas)`
       };
     }
   }, [heaterMasterPower, emergencyStopped, fc1Valve, supabaseControls?.control_mode, supabaseControls?.heater_1_status, supabaseControls?.heater_2_status, latestData.ti1, latestData.ti2]);
@@ -1688,8 +1679,9 @@ export default function FluidHEDashboard() {
         pi2: row.pressure_outlet !== undefined ? parseFloat(Number(row.pressure_outlet).toFixed(2)) : parseFloat((Number(row.pressure || 0) * 0.82).toFixed(2)),
         pi3: row.pressure_inlet_2 !== undefined ? parseFloat(Number(row.pressure_inlet_2).toFixed(2)) : parseFloat((Number(row.pressure || 0) * 0.90).toFixed(2)),
         pi4: row.pressure_outlet_2 !== undefined ? parseFloat(Number(row.pressure_outlet_2).toFixed(2)) : parseFloat((Number(row.pressure || 0) * 0.72).toFixed(2)),
-        fc1: parseFloat(Number(row.flow_rate || 0).toFixed(2)),
-        fc2: row.flow_rate_2 !== undefined ? parseFloat(Number(row.flow_rate_2).toFixed(2)) : parseFloat((Number(row.flow_rate || 0) * 1.15).toFixed(2)),
+        // Nilai sensor debit hardware: flow_rate_2 adalah panas (FC1), flow_rate adalah dingin (FC2)
+        fc1: row.flow_rate_2 !== undefined ? parseFloat(Number(row.flow_rate_2).toFixed(2)) : parseFloat(Number(row.flow_rate || 0).toFixed(2)),
+        fc2: parseFloat(Number(row.flow_rate || 0).toFixed(2)),
         tc1Setpoint: supabaseControls?.target_temp || tc1Setpoint,
         heater1Active: Boolean(supabaseControls?.heater_1_status ?? isHeaterOn),
         heater2Active: Boolean(supabaseControls?.heater_2_status ?? isHeaterOn),
@@ -1738,7 +1730,7 @@ export default function FluidHEDashboard() {
         };
         try {
           localStorage.setItem('fluidhe_current_session', JSON.stringify(updatedSession));
-        } catch (e) {}
+        } catch (e) { }
         return updatedSession;
       });
     }
@@ -1795,7 +1787,7 @@ export default function FluidHEDashboard() {
             }
           })
         });
-      } catch (e) {}
+      } catch (e) { }
     }, 5000);
     return () => clearInterval(interval);
   }, [currentSession?.id, systemState]);
@@ -1937,7 +1929,7 @@ export default function FluidHEDashboard() {
           if ('jitterBufferDelayHint' in receiver) {
             receiver.jitterBufferDelayHint = 0;
           }
-        } catch (e) {}
+        } catch (e) { }
       };
 
       if (videoTransceiver.receiver) setZeroDelayHint(videoTransceiver.receiver);
@@ -1981,7 +1973,7 @@ export default function FluidHEDashboard() {
           setWebrtcError(null);
           try {
             pc.getReceivers().forEach((r) => setZeroDelayHint(r));
-          } catch (e) {}
+          } catch (e) { }
           if (videoRef.current) {
             if (!videoRef.current.srcObject && webrtcStreamRef.current) {
               videoRef.current.srcObject = webrtcStreamRef.current;
@@ -2073,7 +2065,7 @@ export default function FluidHEDashboard() {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && activeTab === 'cctv' && cctvStreamSource === 'local') {
         if (videoRef.current) {
-          videoRef.current.play().catch(() => {});
+          videoRef.current.play().catch(() => { });
         }
       }
     };
@@ -2213,7 +2205,7 @@ export default function FluidHEDashboard() {
       };
 
       setCctvMediaList((prev) => [newSnap, ...prev]);
-      uploadToCloud(blob, fileName, 'cctv-snapshots').catch(() => {});
+      uploadToCloud(blob, fileName, 'cctv-snapshots').catch(() => { });
       triggerCctvToast('Snapshot HD berhasil diambil & diunduh!', 'success');
     } catch (err: any) {
       console.error('Snapshot capture error:', err);
@@ -2453,12 +2445,13 @@ export default function FluidHEDashboard() {
     const existingState = typeof window !== 'undefined' ? localStorage.getItem('fluidhe_system_state') : null;
     if (!existingSession || existingState !== 'ACTIVE') {
       setSystemState('OFF');
+      setIsGuestMode(false);
       setCurrentSession(null);
       setSessionDuration(0);
       try {
         localStorage.setItem('fluidhe_system_state', 'OFF');
         localStorage.removeItem('fluidhe_current_session');
-      } catch (e) {}
+      } catch (e) { }
     }
 
     const inputEmail = loginEmail.toLowerCase().trim();
@@ -2500,32 +2493,34 @@ export default function FluidHEDashboard() {
         sessionStorage.setItem('fluidhe_auth_user', JSON.stringify(userObj));
         sessionStorage.setItem('fluidhe_is_logged_in', 'true');
         localStorage.setItem('fluidhe_active_tab', 'dashboard');
-      } catch (e) {}
+      } catch (e) { }
       return;
     }
 
-    if (inputEmail === '2' || inputEmail === 'operator' || (inputEmail === 'dwimeliantiistiqomah55@gmail.com' && inputPass === '')) {
+    const demoOp = usersList.find((u) => u.role === 'operator');
+    if (inputEmail === '2' || inputEmail === 'operator' || (demoOp && inputEmail === demoOp.email.toLowerCase() && inputPass === '')) {
       if (selectedDemoRole !== 'operator') {
         setLoginError('Akun ini terdaftar sebagai Operator. Silakan klik tab "Operator" di atas untuk masuk.');
         return;
       }
 
       const nowIso = new Date().toISOString();
-      const targetEmail = 'dwimeliantiistiqomah55@gmail.com';
-      const userInList = usersList.find((u) => u.email.toLowerCase() === targetEmail);
-      const displayName = userInList?.name || 'Operator 1';
+      const targetEmail = demoOp ? demoOp.email : 'operator@uad.ac.id';
+      const displayName = demoOp?.name || 'Operator 1';
 
-      setUsersList((prev) =>
-        prev.map((u) => (u.email.toLowerCase() === targetEmail ? { ...u, lastLogin: nowIso } : u))
-      );
+      if (demoOp) {
+        setUsersList((prev) =>
+          prev.map((u) => (u.email.toLowerCase() === targetEmail.toLowerCase() ? { ...u, lastLogin: nowIso } : u))
+        );
 
-      try {
-        fetch('/api/users', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: targetEmail, lastLogin: nowIso, lastSeen: Date.now() })
-        }).catch(() => { });
-      } catch (e) { }
+        try {
+          fetch('/api/users', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: targetEmail, lastLogin: nowIso, lastSeen: Date.now() })
+          }).catch(() => { });
+        } catch (e) { }
+      }
 
       const userObj = {
         name: displayName,
@@ -2540,7 +2535,7 @@ export default function FluidHEDashboard() {
         sessionStorage.setItem('fluidhe_auth_user', JSON.stringify(userObj));
         sessionStorage.setItem('fluidhe_is_logged_in', 'true');
         localStorage.setItem('fluidhe_active_tab', 'dashboard');
-      } catch (e) {}
+      } catch (e) { }
       return;
     }
 
@@ -2574,7 +2569,7 @@ export default function FluidHEDashboard() {
     const found = activeUsers.find(u => u.email.toLowerCase() === email || u.name.toLowerCase() === email) || usersList.find(u => u.email.toLowerCase() === email || u.name.toLowerCase() === email);
 
     // 1. Account existence validation
-    if (!found && email !== 'admin@uad.ac.id' && email !== 'operator@uad.ac.id' && email !== 'anugrahtriplecycle@gmail.com' && email !== 'dwimeliantiistiqomah55@gmail.com') {
+    if (!found && email !== 'admin@uad.ac.id' && email !== 'anugrahtriplecycle@gmail.com') {
       setLoginError('Akun dengan email / username ini belum terdaftar di sistem. Silakan hubungi Administrator Lab.');
       return;
     }
@@ -2681,7 +2676,7 @@ export default function FluidHEDashboard() {
       sessionStorage.setItem('fluidhe_auth_user', JSON.stringify(loggedInUser));
       sessionStorage.setItem('fluidhe_is_logged_in', 'true');
       localStorage.setItem('fluidhe_active_tab', 'dashboard');
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleLogout = () => {
@@ -2696,6 +2691,7 @@ export default function FluidHEDashboard() {
     }
     setIsLoggedIn(false);
     setSystemState('OFF');
+    setIsGuestMode(false);
     setCurrentSession(null);
     setSessionDuration(0);
     try {
@@ -2706,7 +2702,7 @@ export default function FluidHEDashboard() {
       localStorage.removeItem('fluidhe_active_tab');
       localStorage.setItem('fluidhe_system_state', 'OFF');
       localStorage.removeItem('fluidhe_current_session');
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleConfirmShutdownAndLogout = async () => {
@@ -2725,12 +2721,12 @@ export default function FluidHEDashboard() {
     const now = new Date();
     const finalSession: SystemSession | null = currentSession
       ? {
-          ...currentSession,
-          endTime: now.toLocaleTimeString('id-ID'),
-          endTimeMs: Date.now(),
-          durationSeconds: sessionDuration,
-          pointsCount: currentSession.data.length
-        }
+        ...currentSession,
+        endTime: now.toLocaleTimeString('id-ID'),
+        endTimeMs: Date.now(),
+        durationSeconds: sessionDuration,
+        pointsCount: currentSession.data.length
+      }
       : null;
 
     if (finalSession) {
@@ -3305,22 +3301,20 @@ export default function FluidHEDashboard() {
                 ? 'Mesin laboratorium aktif mengirimkan data telemetri secara real-time.'
                 : 'Mesin Belum Terhubung - Data telemetri tidak masuk dari mesin laboratorium.'
             }
-            className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold border transition whitespace-nowrap shrink-0 ${
-              isHardwareOnline
+            className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold border transition whitespace-nowrap shrink-0 ${isHardwareOnline
                 ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs'
                 : supabaseStatus === 'CONNECTING'
                   ? 'bg-amber-50 text-amber-800 border-amber-300 shadow-2xs'
                   : 'bg-rose-50 text-rose-800 border-rose-300 shadow-2xs'
-            }`}
+              }`}
           >
             <span
-              className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${
-                isHardwareOnline
+              className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${isHardwareOnline
                   ? 'bg-emerald-500 animate-pulse'
                   : supabaseStatus === 'CONNECTING'
                     ? 'bg-amber-500 animate-ping'
                     : 'bg-rose-500'
-              }`}
+                }`}
             />
             <span className="hidden xs:inline sm:inline font-extrabold tracking-wide">
               {isHardwareOnline
@@ -3342,6 +3336,22 @@ export default function FluidHEDashboard() {
               <span>Sesi: {Math.floor(operatorSessionRemaining / 60)}m</span>
               <Info className="w-3 h-3 text-amber-600/70 hidden xs:inline shrink-0" />
             </button>
+          )}
+
+          {isGuestMode && systemState !== 'ACTIVE' && (
+            <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 bg-amber-500/10 text-amber-800 border border-amber-300/80 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap shrink-0 shadow-2xs">
+              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+              <span>Mode Tamu (Hanya Data)</span>
+              <button
+                type="button"
+                onClick={() => setIsStartupModalOpen(true)}
+                className="ml-0.5 sm:ml-1 px-1.5 sm:px-2 py-0.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-[9.5px] sm:text-[10px] font-black rounded-md shadow-xs transition active:scale-95 cursor-pointer flex items-center gap-1"
+                title="Mulai sistem fisik & koneksi IoT"
+              >
+                <Play className="w-2.5 h-2.5 fill-white" />
+                <span>Mulai IoT</span>
+              </button>
+            </div>
           )}
 
           {/* User Profile Pill & Logout */}
@@ -3368,846 +3378,904 @@ export default function FluidHEDashboard() {
       </header>
 
       {/* ─── CONDITIONAL RENDER: STANDBY SCREEN (WHEN MACHINE IS OFF) VS ACTIVE DASHBOARD ─── */}
-      {systemState !== 'ACTIVE' ? (
+      {systemState !== 'ACTIVE' && !isGuestMode ? (
         <SystemStandbyScreen
           systemState={systemState}
           operatorName={currentUser?.name || 'Operator'}
           defaultFlowMode={operationMode}
           onStartSystem={handleConfirmStartup}
+          onEnterGuestMode={() => {
+            setIsGuestMode(true);
+            triggerSyncFeedback('Mode Tamu Aktif', 'Anda masuk dalam mode pemantauan data. Mesin & pemanas tetap non-aktif (aman).');
+          }}
           recentArchivesCount={archivedSessions.length}
         />
       ) : (
         /* ─── BODY CONTAINER (SIDEBAR + MAIN CONTENT) ─── */
         <div className="flex-1 flex flex-col md:flex-row w-full max-w-[1600px] mx-auto relative min-w-0">
 
-        {/* ─── MOBILE BACKDROP OVERLAY ─── */}
-        {isSidebarOpen && (
-          <div
-            onClick={() => setIsSidebarOpen(false)}
-            className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm md:hidden transition-opacity"
-          />
-        )}
-
-        {/* ─── SIDEBAR NAVIGATION (RESPONSIVE DRAWER ON MOBILE, STICKY ON DESKTOP) ─── */}
-        <aside
-          className={`fixed md:sticky md:top-[61px] md:h-[calc(100vh-61px)] md:overflow-y-auto inset-y-0 left-0 z-40 w-72 md:w-64 bg-white border-r border-slate-200/80 p-4 space-y-2 no-print shrink-0 transform transition-all duration-300 ease-in-out md:transform-none ${isSidebarOpen ? 'translate-x-0 pointer-events-auto shadow-2xl' : '-translate-x-full md:translate-x-0 pointer-events-none md:pointer-events-auto'
-            }`}
-        >
-          <div className="flex items-center justify-between px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-            <span>Menu Utama</span>
-            <button
+          {/* ─── MOBILE BACKDROP OVERLAY ─── */}
+          {isSidebarOpen && (
+            <div
               onClick={() => setIsSidebarOpen(false)}
-              className="md:hidden p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <nav className="space-y-1">
-            <button
-              onClick={() => {
-                setActiveTab('dashboard');
-                setIsSidebarOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'dashboard'
-                ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-            >
-              <Activity className="w-4 h-4" /> Real-Time Monitoring
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab('control');
-                setIsSidebarOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'control'
-                ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-            >
-              <Sliders className="w-4 h-4" /> Control Panel
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab('logs');
-                setIsSidebarOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'logs'
-                ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-            >
-              <FileText className="w-4 h-4" /> Data Logs & Laporan
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab('alarms');
-                setIsSidebarOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'alarms'
-                ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-            >
-              <div className="relative">
-                <Bell className="w-4 h-4" />
-                {alarmLogs.some(a => !a.acknowledged) && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-ping" />
-                )}
-              </div>
-              Alarm System
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab('cctv');
-                setIsSidebarOpen(false);
-              }}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'cctv'
-                ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <Video className="w-4 h-4 shrink-0" />
-                <span className="truncate">CCTV Feed</span>
-              </div>
-              <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-extrabold border border-emerald-200 shrink-0">Live</span>
-            </button>
-          </nav>
-
-          {currentUser.role === 'admin' && (
-            <div className="pt-4 border-t border-slate-100 space-y-1">
-              <div className="px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                Administrasi & Lab Control (Admin)
-              </div>
-
-              <button
-                onClick={() => {
-                  setActiveTab('sessions');
-                  setIsSidebarOpen(false);
-                }}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'sessions'
-                  ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <FolderKanban className="w-4 h-4 shrink-0" />
-                  <span className="truncate whitespace-nowrap">Data Praktikum</span>
-                </div>
-                <span className="px-1.5 py-0.5 bg-sky-100 text-sky-700 rounded text-[10px] font-extrabold border border-sky-200 shrink-0">Admin</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setActiveTab('users');
-                  setIsSidebarOpen(false);
-                }}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'users'
-                  ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <Users className="w-4 h-4 shrink-0" />
-                  <span className="truncate">User Management</span>
-                </div>
-                <span className="px-1.5 py-0.5 bg-sky-100 text-sky-700 rounded text-[10px] font-extrabold border border-sky-200 shrink-0">Admin</span>
-              </button>
-            </div>
+              className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm md:hidden transition-opacity"
+            />
           )}
 
-          <div className="mt-8 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs space-y-1.5">
-            <div className="flex items-center gap-2 font-bold text-slate-800">
-              <Server className="w-4 h-4 text-sky-600" /> Specs Hardware
+          {/* ─── SIDEBAR NAVIGATION (RESPONSIVE DRAWER ON MOBILE, STICKY ON DESKTOP) ─── */}
+          <aside
+            className={`fixed md:sticky md:top-[61px] md:h-[calc(100vh-61px)] md:overflow-y-auto inset-y-0 left-0 z-40 w-72 md:w-64 bg-white border-r border-slate-200/80 p-4 space-y-2 no-print shrink-0 transform transition-all duration-300 ease-in-out md:transform-none ${isSidebarOpen ? 'translate-x-0 pointer-events-auto shadow-2xl' : '-translate-x-full md:translate-x-0 pointer-events-none md:pointer-events-auto'
+              }`}
+          >
+            <div className="flex items-center justify-between px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+              <span>Menu Utama</span>
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                className="md:hidden p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <p className="text-[11px] text-slate-500 leading-relaxed">
-              Dual Heater (H1 &amp; H2), 4 Solenoid Valve (SV1–SV4), 4 Sensor Suhu (T1–T4), 4 Sensor Tekanan (P1–P4), 2 Flow Meter (FC1–FC2), &amp; Katup Manual (VL).
-            </p>
-          </div>
-        </aside>
 
-        {/* ─── MAIN CONTENT VIEW SWITCHER ─── */}
-        <main className="flex-1 min-w-0 max-w-full overflow-x-hidden p-3.5 sm:p-4 md:p-6 space-y-6 overflow-y-auto pb-24 md:pb-6">
+            <nav className="space-y-1">
+              <button
+                onClick={() => {
+                  setActiveTab('dashboard');
+                  setIsSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'dashboard'
+                  ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+              >
+                <Activity className="w-4 h-4" /> Real-Time Monitoring
+              </button>
 
-          {/* SAFETY / WARNING BANNERS (HANYA MUNCUL DI TAB MONITORING AKTIF & TIDAK MUNCUL DI LAPORAN / PRINT) */}
-          {/* 🚨 CRITICAL WARNING SYSTEM POP-UP BANNER (WARN_BKA_UAP / DELTA PRESSURE ALERT) */}
-          {(activeTab === 'dashboard' || activeTab === 'control') &&
-            !isCriticalWarningDismissed &&
-            isCriticalUapCondition && (
-              <div className="no-print print:hidden p-4 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white border-2 border-red-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl shadow-red-600/30 animate-pulse">
+              <button
+                onClick={() => {
+                  setActiveTab('control');
+                  setIsSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'control'
+                  ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+              >
+                <Sliders className="w-4 h-4" /> Control Panel
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab('logs');
+                  setIsSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'logs'
+                  ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+              >
+                <FileText className="w-4 h-4" /> Data Logs & Laporan
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab('alarms');
+                  setIsSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'alarms'
+                  ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+              >
+                <div className="relative">
+                  <Bell className="w-4 h-4" />
+                  {alarmLogs.some(a => !a.acknowledged) && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-ping" />
+                  )}
+                </div>
+                Alarm System
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab('cctv');
+                  setIsSidebarOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'cctv'
+                  ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <Video className="w-4 h-4 shrink-0" />
+                  <span className="truncate">CCTV Feed</span>
+                </div>
+                <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-extrabold border border-emerald-200 shrink-0">Live</span>
+              </button>
+            </nav>
+
+            {currentUser.role === 'admin' && (
+              <div className="pt-4 border-t border-slate-100 space-y-1">
+                <div className="px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                  Administrasi & Lab Control (Admin)
+                </div>
+
+                <button
+                  onClick={() => {
+                    setActiveTab('sessions');
+                    setIsSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'sessions'
+                    ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <FolderKanban className="w-4 h-4 shrink-0" />
+                    <span className="truncate whitespace-nowrap">Data Praktikum</span>
+                  </div>
+                  <span className="px-1.5 py-0.5 bg-sky-100 text-sky-700 rounded text-[10px] font-extrabold border border-sky-200 shrink-0">Admin</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab('users');
+                    setIsSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'users'
+                    ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Users className="w-4 h-4 shrink-0" />
+                    <span className="truncate">User Management</span>
+                  </div>
+                  <span className="px-1.5 py-0.5 bg-sky-100 text-sky-700 rounded text-[10px] font-extrabold border border-sky-200 shrink-0">Admin</span>
+                </button>
+              </div>
+            )}
+
+            <div className="mt-8 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs space-y-1.5">
+              <div className="flex items-center gap-2 font-bold text-slate-800">
+                <Server className="w-4 h-4 text-sky-600" /> Specs Hardware
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Dual Heater (H1 &amp; H2), 4 Solenoid Valve (SV1–SV4), 4 Sensor Suhu (T1–T4), 4 Sensor Tekanan (P1–P4), 2 Flow Meter (FC1–FC2), &amp; Katup Manual (VL).
+              </p>
+            </div>
+          </aside>
+
+          {/* ─── MAIN CONTENT VIEW SWITCHER ─── */}
+          <main className="flex-1 min-w-0 max-w-full overflow-x-hidden p-3.5 sm:p-4 md:p-6 space-y-6 overflow-y-auto pb-24 md:pb-6">
+
+            {/* SAFETY / WARNING BANNERS (HANYA MUNCUL DI TAB MONITORING AKTIF & TIDAK MUNCUL DI LAPORAN / PRINT) */}
+            {/* 🚨 CRITICAL WARNING SYSTEM POP-UP BANNER (WARN_BKA_UAP / DELTA PRESSURE ALERT) */}
+            {(activeTab === 'dashboard' || activeTab === 'control') &&
+              !isCriticalWarningDismissed &&
+              isCriticalUapCondition && (
+                <div className="no-print print:hidden p-4 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white border-2 border-red-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl shadow-red-600/30 animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-white/20 rounded-xl shrink-0">
+                      <AlertTriangle className="w-7 h-7 text-white animate-bounce" />
+                    </div>
+                    <div>
+                      <h4 className="font-black text-sm sm:text-base text-white tracking-wide uppercase flex items-center gap-2 flex-wrap">
+                        PERINGATAN BAHAYA: Beda Tekanan (ΔP) Kritis!
+                        {supabaseControls.uap_status && (
+                          <span className="text-[10px] font-black bg-emerald-500 text-white px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                            Katup Uap Aktif Terbuka
+                          </span>
+                        )}
+                      </h4>
+                      <p className="text-xs text-red-100 font-medium mt-0.5">
+                        {supabaseControls.uap_status
+                          ? 'Katup uap telah dibuka untuk membuang tekanan & uap panas. Pantau penurunan sensor.'
+                          : `Harap Buka Katup Uap Sekarang! Nilai beda tekanan terdeteksi ΔP > ${(deltaPMaxThreshold || 2.0).toFixed(1)} atm-g (Saat ini: ${currentDeltaP.toFixed(2)} atm-g).`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                    {!supabaseControls.uap_status ? (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await handleUapStatusToggle(true);
+                          triggerSyncFeedback('Katup Uap', 'DIBUKA (DARURAT BAHAYA)');
+                          setIsCriticalWarningDismissed(true);
+                        }}
+                        className="w-full sm:w-auto px-5 py-2.5 bg-white hover:bg-red-50 text-red-700 rounded-xl text-xs font-black shadow-lg transition active:scale-95 flex items-center justify-center gap-2 cursor-pointer border border-red-200"
+                      >
+                        <Power className="w-4 h-4 text-red-600" />
+                        BUKA KATUP UAP SEKARANG
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setIsCriticalWarningDismissed(true)}
+                        className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-lg transition active:scale-95 flex items-center justify-center gap-2 cursor-pointer border border-emerald-400"
+                      >
+                        <Check className="w-4 h-4" />
+                        TUTUP NOTIFIKASI
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      title="Tutup Peringatan"
+                      onClick={() => setIsCriticalWarningDismissed(true)}
+                      className="p-2 hover:bg-white/20 rounded-xl text-white/90 hover:text-white transition cursor-pointer shrink-0"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            {(activeTab === 'dashboard' || activeTab === 'control') && primingNotice && (
+              <div className="no-print print:hidden p-4 bg-gradient-to-r from-sky-50 via-blue-50 to-sky-50 border border-sky-300 rounded-2xl flex justify-between items-center text-xs text-sky-950 shadow-xs animate-fade-in">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-white/20 rounded-xl shrink-0">
-                    <AlertTriangle className="w-7 h-7 text-white animate-bounce" />
+                  <AlertTriangle className="w-5 h-5 text-sky-600 shrink-0" />
+                  <div>
+                    <strong className="font-bold">Peringatan Keselamatan Kerja (Dry Heating Prevention):</strong>
+                    <p className="mt-0.5">{primingNotice}</p>
+                  </div>
+                </div>
+                <button onClick={() => setPrimingNotice(null)} className="p-1 hover:bg-sky-100 rounded-lg text-sky-700 cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {(activeTab === 'dashboard' || activeTab === 'control') && show1MinWarning && isHardwareOnline && (
+              <div className="no-print print:hidden p-4 bg-gradient-to-r from-sky-50 via-blue-50 to-indigo-50/50 border border-sky-300 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs text-sky-950 shadow-sm animate-fade-in">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-sky-100 text-sky-700 border border-sky-200 shrink-0">
+                    <Clock className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="font-black text-sm sm:text-base text-white tracking-wide uppercase flex items-center gap-2 flex-wrap">
-                      PERINGATAN BAHAYA: Beda Tekanan (ΔP) Kritis!
-                      {supabaseControls.uap_status && (
-                        <span className="text-[10px] font-black bg-emerald-500 text-white px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                          Katup Uap Aktif Terbuka
-                        </span>
-                      )}
-                    </h4>
-                    <p className="text-xs text-red-100 font-medium mt-0.5">
-                      {supabaseControls.uap_status
-                        ? 'Katup uap telah dibuka untuk membuang tekanan & uap panas. Pantau penurunan sensor.'
-                        : `Harap Buka Katup Uap Sekarang! Nilai beda tekanan terdeteksi ΔP > ${(deltaPMaxThreshold || 2.0).toFixed(1)} atm-g (Saat ini: ${currentDeltaP.toFixed(2)} atm-g).`}
+                    <strong className="font-extrabold text-sky-900 block text-xs sm:text-sm">Peringatan Waktu Pemanasan (Target Suhu Belum Tercapai)</strong>
+                    <p className="mt-0.5 text-slate-600">
+                      Pemanas aktif selama {heatingTimerSeconds} detik. Disarankan menyesuaikan laju aliran (Flow Rate) agar perpindahan panas lebih optimal mencapai {tc1Setpoint}°C.
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-                  {!supabaseControls.uap_status ? (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await handleUapStatusToggle(true);
-                        triggerSyncFeedback('Katup Uap', 'DIBUKA (DARURAT BAHAYA)');
-                        setIsCriticalWarningDismissed(true);
-                      }}
-                      className="w-full sm:w-auto px-5 py-2.5 bg-white hover:bg-red-50 text-red-700 rounded-xl text-xs font-black shadow-lg transition active:scale-95 flex items-center justify-center gap-2 cursor-pointer border border-red-200"
-                    >
-                      <Power className="w-4 h-4 text-red-600" />
-                      BUKA KATUP UAP SEKARANG
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setIsCriticalWarningDismissed(true)}
-                      className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-lg transition active:scale-95 flex items-center justify-center gap-2 cursor-pointer border border-emerald-400"
-                    >
-                      <Check className="w-4 h-4" />
-                      TUTUP NOTIFIKASI
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    title="Tutup Peringatan"
-                    onClick={() => setIsCriticalWarningDismissed(true)}
-                    className="p-2 hover:bg-white/20 rounded-xl text-white/90 hover:text-white transition cursor-pointer shrink-0"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                <button
+                  type="button"
+                  onClick={handleAcknowledgeHeatingWarning}
+                  className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-bold text-xs shadow-sm transition cursor-pointer shrink-0"
+                >
+                  Mengerti
+                </button>
+              </div>
+            )}
+
+            {/* TAB 1: MAIN REALTIME DASHBOARD */}
+            {activeTab === 'dashboard' && (
+              <div className="space-y-6">
+                {/* 1. Summary Cards (Tappable to jump to controls) */}
+                <TelemetryCards
+                  latestData={latestData}
+                  tempLabels={tempLabels}
+                  tc1Setpoint={tc1Setpoint}
+                  ti1MaxThreshold={ti1MaxThreshold}
+                  deltaPHot={deltaPHot}
+                  deltaPCold={deltaPCold}
+                  fc1Valve={supabaseControls?.servo_angle !== undefined ? supabaseControls.servo_angle : fc1Valve}
+                  fc2Valve={supabaseControls?.servo_angle_2 !== undefined ? supabaseControls.servo_angle_2 : fc2Valve}
+                  onCardClick={() => setActiveTab('control')}
+                  isHardwareOnline={isHardwareOnline}
+                />
+
+                {/* 2. Real-Time Temperature & Pressure Multi-Line Chart */}
+                <LiveChart
+                  telemetryHistory={telemetryHistory}
+                  operatorSessionLimit={operatorSessionLimit}
+                  isHardwareOnline={isHardwareOnline}
+                />
+
+                {/* 3. Interactive Digital Twin P&ID Visual Diagram */}
+                <div id="tour-pid-diagram" className="asklepios-card p-3.5 sm:p-6 bg-white relative overflow-hidden space-y-4 sm:space-y-6 rounded-2xl sm:rounded-3xl">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 pb-3 border-b border-slate-100">
+                    <div>
+                      <h3 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2">
+                        <Layers className="w-5 h-5 text-sky-600 shrink-0" /> Visualisasi Aliran Fluida & Diagram P&ID
+                      </h3>
+                      <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+                        Menampilkan posisi 4 Katup Solenoid (SV1-SV4) & Dual Heater secara real-time
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 text-[10px] sm:text-xs font-bold rounded-xl flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-sky-500 animate-ping" /> Live Telemetry
+                      </span>
+                    </div>
+                  </div>
+
+                  <FlowModeSelector
+                    variant="dashboard"
+                    currentFlowMode={operationMode}
+                    disabled={emergencyStopped}
+                    onSelectMode={(modeCode, friendlyMode) => {
+                      setOperationMode(friendlyMode);
+                      handleFlowModeChange(modeCode);
+                      triggerSyncFeedback('Arah Aliran', modeCode === 'CO-CURRENT' ? 'CO-CURRENT' : 'COUNTER-CURRENT');
+                    }}
+                  />
+
+                  {renderPIDDiagram(operationMode)}
                 </div>
               </div>
             )}
 
-          {(activeTab === 'dashboard' || activeTab === 'control') && primingNotice && (
-            <div className="no-print print:hidden p-4 bg-gradient-to-r from-sky-50 via-blue-50 to-sky-50 border border-sky-300 rounded-2xl flex justify-between items-center text-xs text-sky-950 shadow-xs animate-fade-in">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="w-5 h-5 text-sky-600 shrink-0" />
-                <div>
-                  <strong className="font-bold">Peringatan Keselamatan Kerja (Dry Heating Prevention):</strong>
-                  <p className="mt-0.5">{primingNotice}</p>
-                </div>
-              </div>
-              <button onClick={() => setPrimingNotice(null)} className="p-1 hover:bg-sky-100 rounded-lg text-sky-700 cursor-pointer">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+            {/* TAB 2: UNIFIED REAL-TIME CONTROL PANEL & TELEMETRY */}
+            {activeTab === 'control' && (
+              <div className="space-y-4 sm:space-y-6">
+                <div className="asklepios-card p-3.5 sm:p-6 bg-white shadow-xl rounded-2xl sm:rounded-3xl border border-slate-200 space-y-4 sm:space-y-6">
 
-          {(activeTab === 'dashboard' || activeTab === 'control') && show1MinWarning && isHardwareOnline && (
-            <div className="no-print print:hidden p-4 bg-gradient-to-r from-sky-50 via-blue-50 to-indigo-50/50 border border-sky-300 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs text-sky-950 shadow-sm animate-fade-in">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-sky-100 text-sky-700 border border-sky-200 shrink-0">
-                  <Clock className="w-5 h-5" />
-                </div>
-                <div>
-                  <strong className="font-extrabold text-sky-900 block text-xs sm:text-sm">Peringatan Waktu Pemanasan (Target Suhu Belum Tercapai)</strong>
-                  <p className="mt-0.5 text-slate-600">
-                    Pemanas aktif selama {heatingTimerSeconds} detik. Disarankan menyesuaikan laju aliran (Flow Rate) agar perpindahan panas lebih optimal mencapai {tc1Setpoint}°C.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleAcknowledgeHeatingWarning}
-                className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-bold text-xs shadow-sm transition cursor-pointer shrink-0"
-              >
-                Mengerti
-              </button>
-            </div>
-          )}
-
-          {/* TAB 1: MAIN REALTIME DASHBOARD */}
-          {activeTab === 'dashboard' && (
-            <div className="space-y-6">
-              {/* 1. Summary Cards (Tappable to jump to controls) */}
-              <TelemetryCards
-                latestData={latestData}
-                tempLabels={tempLabels}
-                tc1Setpoint={tc1Setpoint}
-                ti1MaxThreshold={ti1MaxThreshold}
-                deltaPHot={deltaPHot}
-                deltaPCold={deltaPCold}
-                fc1Valve={supabaseControls?.servo_angle !== undefined ? supabaseControls.servo_angle : fc1Valve}
-                fc2Valve={supabaseControls?.servo_angle_2 !== undefined ? supabaseControls.servo_angle_2 : fc2Valve}
-                onCardClick={() => setActiveTab('control')}
-                isHardwareOnline={isHardwareOnline}
-              />
-
-              {/* 2. Real-Time Temperature & Pressure Multi-Line Chart */}
-              <LiveChart
-                telemetryHistory={telemetryHistory}
-                operatorSessionLimit={operatorSessionLimit}
-                isHardwareOnline={isHardwareOnline}
-              />
-
-              {/* 3. Interactive Digital Twin P&ID Visual Diagram */}
-              <div id="tour-pid-diagram" className="asklepios-card p-3.5 sm:p-6 bg-white relative overflow-hidden space-y-4 sm:space-y-6 rounded-2xl sm:rounded-3xl">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 pb-3 border-b border-slate-100">
-                  <div>
-                    <h3 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2">
-                      <Layers className="w-5 h-5 text-sky-600 shrink-0" /> Visualisasi Aliran Fluida & Diagram P&ID
-                    </h3>
-                    <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
-                      Menampilkan posisi 4 Katup Solenoid (SV1-SV4) & Dual Heater secara real-time
-                    </p>
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 border-b border-slate-100 pb-3 sm:pb-4">
+                    <div>
+                      <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                        <Sliders className="w-5 h-5 sm:w-6 sm:h-6 text-sky-600" /> Pusat Kendali Operasi
+                      </h2>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 text-[10px] sm:text-xs font-bold rounded-xl flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-sky-500 animate-ping" /> Live Telemetry
-                    </span>
+                  {/* ─── LIVE VISUAL IOT TRANSMISSION ACTIVITY BAR ─── */}
+                  <div className={`p-3 rounded-2xl border transition-all duration-300 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 ${syncFeedback.active
+                    ? syncFeedback.type === 'syncing'
+                      ? 'bg-sky-500/10 border-sky-400/50 shadow-md shadow-sky-500/10'
+                      : 'bg-emerald-500/10 border-emerald-400/50 shadow-md shadow-emerald-500/10'
+                    : 'bg-slate-50 border-slate-200'
+                    }`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-xl border shrink-0 transition-all ${syncFeedback.active
+                        ? syncFeedback.type === 'syncing'
+                          ? 'bg-sky-600 text-white border-sky-500 animate-spin'
+                          : 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
+                        : 'bg-white text-slate-400 border-slate-200'
+                        }`}>
+                        {syncFeedback.active ? (
+                          syncFeedback.type === 'syncing' ? <RefreshCw className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />
+                        ) : (
+                          <Radio className="w-4 h-4 text-sky-600" />
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <strong className="text-xs font-bold text-slate-900">
+                          {syncFeedback.active ? syncFeedback.message : 'Sinkronisasi Data Otomatis'}
+                        </strong>
+                        {syncFeedback.active && (
+                          <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-extrabold uppercase tracking-wider ${syncFeedback.type === 'syncing'
+                            ? 'bg-sky-100 text-sky-800 border border-sky-200 animate-pulse'
+                            : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            }`}>
+                            {syncFeedback.type === 'syncing' ? 'Mengirim...' : 'Terkirim'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[11px] font-mono text-slate-500 shrink-0 bg-white/80 px-3 py-1.5 rounded-xl border border-slate-200">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${syncFeedback.active && syncFeedback.type === 'syncing'
+                        ? 'bg-sky-500 animate-ping'
+                        : supabaseStatus === 'ONLINE'
+                          ? isHardwareOnline
+                            ? 'bg-emerald-500 animate-pulse'
+                            : 'bg-amber-500'
+                          : 'bg-red-500'
+                        }`} />
+                      <span>Status: <strong>{supabaseStatus === 'ONLINE' ? (isHardwareOnline ? 'ONLINE' : 'STANDBY (OFFLINE)') : supabaseStatus}</strong></span>
+                    </div>
                   </div>
-                </div>
 
-                <FlowModeSelector
-                  variant="dashboard"
-                  currentFlowMode={operationMode}
-                  disabled={emergencyStopped}
-                  onSelectMode={(modeCode, friendlyMode) => {
-                    setOperationMode(friendlyMode);
-                    handleFlowModeChange(modeCode);
-                    triggerSyncFeedback('Arah Aliran', modeCode === 'CO-CURRENT' ? 'CO-CURRENT' : 'COUNTER-CURRENT');
-                  }}
-                />
+                  {/* Emergency Stop Active Banner */}
+                  {emergencyStopped && (
+                    <div className="p-4 bg-red-50 border-2 border-red-500 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-pulse">
+                      <div className="flex items-center gap-3 text-red-700">
+                        <AlertTriangle className="w-6 h-6 text-red-600 shrink-0" />
+                        <div>
+                          <h4 className="font-extrabold text-sm text-red-900">EMERGENCY STOP DIBEKUKAN</h4>
+                          <p className="text-xs text-red-700">Pemanas dimatikan demi keselamatan.</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={resetEmergencyStop}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-extrabold shadow-md transition active:scale-95 shrink-0"
+                      >
+                        Reset & Pulihkan
+                      </button>
+                    </div>
+                  )}
 
-                {renderPIDDiagram(operationMode)}
-              </div>
-            </div>
-          )}
+                  {supabaseError && (
+                    <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
+                      <span>{supabaseError}</span>
+                    </div>
+                  )}
 
-          {/* TAB 2: UNIFIED REAL-TIME CONTROL PANEL & TELEMETRY */}
-          {activeTab === 'control' && (
-            <div className="space-y-4 sm:space-y-6">
-              <div className="asklepios-card p-3.5 sm:p-6 bg-white shadow-xl rounded-2xl sm:rounded-3xl border border-slate-200 space-y-4 sm:space-y-6">
+                  {/* 1. Real-Time Read Telemetry Sensor Cards */}
+                  <StatCards
+                    tempLabels={tempLabels}
+                    supabaseTelemetry={supabaseTelemetry}
+                    latestData={latestData}
+                    dualHeaterState={dualHeaterState}
+                    isHardwareOnline={isHardwareOnline}
+                  />
 
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 border-b border-slate-100 pb-3 sm:pb-4">
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 flex items-center gap-2">
-                      <Sliders className="w-5 h-5 sm:w-6 sm:h-6 text-sky-600" /> Pusat Kendali Operasi
-                    </h2>
-                  </div>
-                </div>
+                  {/* 2. Unified Control Command Inputs (Dibekukan & Blur Jika Mesin Tidak Aktif/Offline) */}
+                  <div className="space-y-4 pt-2 relative">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <Sliders className="w-4 h-4 text-sky-600" /> Panel Pengaturan & Perintah Kontrol
+                      </h3>
+                      {!isHardwareOnline && (
+                        <button
+                          type="button"
+                          onClick={() => setIsControlOfflineModalDismissed(false)}
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 shadow-2xs transition active:scale-95 cursor-pointer"
+                          title="Klik untuk melihat informasi pembekuan kontrol"
+                        >
+                          <Lock className="w-3 h-3 text-rose-600" /> Kontrol Dibekukan (Mesin Mati)
+                        </button>
+                      )}
+                    </div>
 
-                {/* ─── LIVE VISUAL IOT TRANSMISSION ACTIVITY BAR ─── */}
-                <div className={`p-3 rounded-2xl border transition-all duration-300 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 ${syncFeedback.active
-                  ? syncFeedback.type === 'syncing'
-                    ? 'bg-sky-500/10 border-sky-400/50 shadow-md shadow-sky-500/10'
-                    : 'bg-emerald-500/10 border-emerald-400/50 shadow-md shadow-emerald-500/10'
-                  : 'bg-slate-50 border-slate-200'
-                  }`}>
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-xl border shrink-0 transition-all ${syncFeedback.active
-                      ? syncFeedback.type === 'syncing'
-                        ? 'bg-sky-600 text-white border-sky-500 animate-spin'
-                        : 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
-                      : 'bg-white text-slate-400 border-slate-200'
+                    {/* Relative container holding control buttons with blur & overlay when offline */}
+                    <div className="relative">
+                      {/* Controls Grid */}
+                      <div className={`transition-all duration-300 ${
+                        !isHardwareOnline
+                          ? isControlOfflineModalDismissed
+                            ? 'opacity-60 grayscale pointer-events-none select-none cursor-not-allowed'
+                            : 'opacity-40 grayscale pointer-events-none select-none blur-[2px]'
+                          : ''
                       }`}>
-                      {syncFeedback.active ? (
-                        syncFeedback.type === 'syncing' ? <RefreshCw className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />
-                      ) : (
-                        <Radio className="w-4 h-4 text-sky-600" />
-                      )}
-                    </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 sm:gap-4">
 
-                    <div className="flex items-center gap-2">
-                      <strong className="text-xs font-bold text-slate-900">
-                        {syncFeedback.active ? syncFeedback.message : 'Sinkronisasi Data Otomatis'}
-                      </strong>
-                      {syncFeedback.active && (
-                        <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-extrabold uppercase tracking-wider ${syncFeedback.type === 'syncing'
-                          ? 'bg-sky-100 text-sky-800 border border-sky-200 animate-pulse'
-                          : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          }`}>
-                          {syncFeedback.type === 'syncing' ? 'Mengirim...' : 'Terkirim'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-[11px] font-mono text-slate-500 shrink-0 bg-white/80 px-3 py-1.5 rounded-xl border border-slate-200">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${syncFeedback.active && syncFeedback.type === 'syncing'
-                      ? 'bg-sky-500 animate-ping'
-                      : supabaseStatus === 'ONLINE'
-                        ? isHardwareOnline
-                          ? 'bg-emerald-500 animate-pulse'
-                          : 'bg-amber-500'
-                        : 'bg-red-500'
-                      }`} />
-                    <span>Status: <strong>{supabaseStatus === 'ONLINE' ? (isHardwareOnline ? 'ONLINE' : 'STANDBY (OFFLINE)') : supabaseStatus}</strong></span>
-                  </div>
-                </div>
-
-                {/* Emergency Stop Active Banner */}
-                {emergencyStopped && (
-                  <div className="p-4 bg-red-50 border-2 border-red-500 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-pulse">
-                    <div className="flex items-center gap-3 text-red-700">
-                      <AlertTriangle className="w-6 h-6 text-red-600 shrink-0" />
-                      <div>
-                        <h4 className="font-extrabold text-sm text-red-900">EMERGENCY STOP DIBEKUKAN</h4>
-                        <p className="text-xs text-red-700">Pemanas dimatikan demi keselamatan.</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={resetEmergencyStop}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-extrabold shadow-md transition active:scale-95 shrink-0"
-                    >
-                      Reset & Pulihkan
-                    </button>
-                  </div>
-                )}
-
-                {supabaseError && (
-                  <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
-                    <span>{supabaseError}</span>
-                  </div>
-                )}
-
-                {/* 1. Real-Time Read Telemetry Sensor Cards */}
-                <StatCards
-                  tempLabels={tempLabels}
-                  supabaseTelemetry={supabaseTelemetry}
-                  latestData={latestData}
-                  dualHeaterState={dualHeaterState}
-                  isHardwareOnline={isHardwareOnline}
-                />
-
-                {/* 2. Unified Control Command Inputs */}
-                <div className="space-y-4 pt-2">
-                  <h3 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                    <Sliders className="w-4 h-4 text-sky-600" /> Panel Pengaturan & Perintah Kontrol
-                  </h3>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 sm:gap-4">
-
-                    {/* Switch Control Mode (AUTO / MANUAL) */}
-                    <div id="tour-control-mode" className="p-2.5 sm:p-4 bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-200 space-y-1.5 sm:space-y-2.5">
-                      <div className="flex justify-between items-center gap-2">
-                        <label className="text-[11px] sm:text-xs font-bold text-slate-800 flex items-center gap-1.5 truncate">
-                          <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-600 shrink-0" />
-                          <span className="truncate">Mode Kendali Operasi</span>
-                        </label>
-                        <span className="text-[9.5px] sm:text-[10px] text-slate-500 font-semibold shrink-0 whitespace-nowrap">
-                          Status: <strong className="text-sky-700">{supabaseControls.control_mode}</strong>
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 p-1 sm:p-1.5 bg-gradient-to-r from-slate-200/80 via-slate-100 to-slate-200/80 rounded-xl sm:rounded-2xl border border-slate-300/60 shadow-inner gap-1 sm:gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleControlModeChange('AUTO');
-                            setOperationMode('Counter-Current');
-                            triggerSyncFeedback('Mode Operasi AUTO', 'Sistem Mengelola Heater & Katup Otomatis');
-                          }}
-                          disabled={emergencyStopped}
-                          className={`py-2 sm:py-3 px-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-black transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 ${supabaseControls.control_mode === 'AUTO'
-                              ? 'bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 text-white shadow-md shadow-sky-500/20 border border-sky-400/40'
-                              : 'bg-white/70 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/60'
-                            }`}
-                        >
-                          <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                          <span>AUTO</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleControlModeChange('MANUAL');
-                            triggerSyncFeedback('Mode Operasi MANUAL', 'Kendali Bebas Operator Aktif');
-                          }}
-                          disabled={emergencyStopped}
-                          className={`py-2 sm:py-3 px-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-black transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 ${supabaseControls.control_mode === 'MANUAL'
-                              ? 'bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 text-white shadow-md shadow-sky-500/20 border border-sky-400/40'
-                              : 'bg-white/70 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/60'
-                            }`}
-                        >
-                          <Sliders className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                          <span>MANUAL</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Switch Mode Aliran (COUNTER / CO-CURRENT) */}
-                    <FlowModeSelector
-                      variant="control"
-                      currentFlowMode={supabaseControls.flow_mode}
-                      disabled={emergencyStopped}
-                      onSelectMode={(modeCode, friendlyMode) => {
-                        setOperationMode(friendlyMode);
-                        handleFlowModeChange(modeCode);
-                        triggerSyncFeedback('Arah Aliran', modeCode === 'CO-CURRENT' ? 'CO-CURRENT' : 'COUNTER-CURRENT');
-                      }}
-                    />
-
-                    {/* BARIS 1: SISTEM DUAL HEATER (HEATER 1 & HEATER 2) + THERMOSTAT SETUP & PANEL KALIBRASI */}
-                    <DualHeatersControl
-                      controlMode={supabaseControls.control_mode}
-                      targetTemp={supabaseControls.target_temp ?? tc1Setpoint ?? 50}
-                      targetTempHot={supabaseControls.target_temp_hot ?? supabaseControls.target_temp ?? 50.0}
-                      toleranceLevel={supabaseControls.tolerance_level ?? 1}
-                      upperLimit={supabaseControls.upper_limit}
-                      lowerLimit={supabaseControls.lower_limit}
-                      flowCalibrationFactor={supabaseControls.flow_calibration_factor ?? 7.90}
-                      flowCalibrationFactor1={supabaseControls.flow_calibration_factor_1 ?? supabaseControls.flow_calibration_factor ?? 7.90}
-                      flowCalibrationFactor2={supabaseControls.flow_calibration_factor_2 ?? 7.90}
-                      tempOffset={supabaseControls.temp_offset ?? 0.0}
-                      pressureOffset={supabaseControls.pressure_offset ?? 0.0}
-                      heater1Status={supabaseControls.btn_onoff !== undefined ? supabaseControls.btn_onoff : (supabaseControls.heater_1_status ?? false)}
-                      heater2Status={supabaseControls.heater_2_status !== undefined ? supabaseControls.heater_2_status : false}
-                      emergencyStopped={emergencyStopped}
-                      isBtnUpActive={activeMomentaryButtons.btn_up}
-                      isBtnDownActive={activeMomentaryButtons.btn_down}
-                      isUpdatingControl={isUpdatingControl}
-                      onToggleHeater1={async (nextState) => {
-                        triggerSyncFeedback('Heater 1', nextState ? 'ON' : 'OFF');
-                        await handleHeater1PowerToggle(nextState);
-                      }}
-                      onToggleHeater2={async (nextState) => {
-                        triggerSyncFeedback('Heater 2 (Booster)', nextState ? 'ON' : 'OFF');
-                        await handleHeater2PowerToggle(nextState);
-                      }}
-                      onAdjustSetPoint={async (delta) => {
-                        const currentSp = supabaseControls.target_temp_hot ?? supabaseControls.target_temp ?? 50.0;
-                        const currentTol = supabaseControls.tolerance_level ?? 1;
-                        const newSp = Math.min(90, Math.max(20, currentSp + delta));
-                        triggerSyncFeedback('Kontrol Point Utama', `${newSp.toFixed(1)}°C`);
-                        await handleThermostatSetupChange(newSp, currentTol);
-                      }}
-                      onAdjustTolerance={async (delta) => {
-                        const currentSp = supabaseControls.target_temp_hot ?? supabaseControls.target_temp ?? 50.0;
-                        const currentTol = supabaseControls.tolerance_level ?? 1;
-                        const newTol = Math.min(7, Math.max(1, currentTol + delta));
-                        triggerSyncFeedback('Level Toleransi', `P${newTol} (±${newTol}.0°C)`);
-                        await handleThermostatSetupChange(currentSp, newTol);
-                      }}
-                      onSaveThermostatSetup={async (sp, tol) => {
-                        triggerSyncFeedback('Thermostat Setup', `KP: ${sp}°C | P${tol}`);
-                        await handleThermostatSetupChange(sp, tol);
-                      }}
-                      onSaveCalibration={async (flowCal1, flowCal2, tOffset, pOffset) => {
-                        triggerSyncFeedback('Kalibrasi Sensor', `Flow Dingin: ${flowCal1} | Flow Panas: ${flowCal2} | Temp: ${tOffset}°C | Press: ${pOffset}bar`);
-                        await handleSensorCalibrationChange(flowCal1, flowCal2, tOffset, pOffset);
-                      }}
-                      targetUpper={supabaseControls.target_upper ?? 60}
-                      targetLower={supabaseControls.target_lower ?? 45}
-                      onSaveThermostatLimits={async (up, low) => {
-                        triggerSyncFeedback('Thermostat Limit', `H2 OFF: ${up}°C | H2 ON: ${low}°C`);
-                        await handleThermostatLimitsChange(up, low);
-                      }}
-                    />
-
-                    {/* BARIS 2: POMPA SIRKULASI (KIRI), KATUP SOLENOID UAP (TENGAH - ADMIN ONLY), KATUP AIR DINGIN (KANAN) */}
-                    <div className={`col-span-1 lg:col-span-2 grid grid-cols-1 md:grid-cols-2 ${currentUser.role === 'admin' ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-3.5 sm:gap-4 items-stretch`}>
-                      {/* 1. Pompa Sirkulasi (KIRI) */}
-                      <PumpControl
-                        controlMode={supabaseControls.control_mode}
-                        pompaStatus={supabaseControls.pompa_ekstra ?? false}
-                        emergencyStopped={emergencyStopped}
-                        onTogglePompa={(nextState) => {
-                          handlePompaToggle(nextState);
-                          triggerSyncFeedback('Pompa Sirkulasi', nextState ? 'POMPA NYALA (ON)' : 'POMPA MATI (OFF)');
-                        }}
-                      />
-
-                      {/* 2. Katup Solenoid Uap (TENGAH - HANYA ADMIN) */}
-                      {currentUser.role === 'admin' && (
-                        <SteamValveControl
-                          controlMode={supabaseControls.control_mode}
-                          uapStatus={supabaseControls.uap_status ?? false}
-                          uapAutoStatus={supabaseControls.control_mode === 'AUTO' ? true : (supabaseControls.uap_auto_status ?? false)}
-                          uapIntervalMin={supabaseControls.uap_interval_min ?? 5}
-                          emergencyStopped={emergencyStopped}
-                          isPressureDangerous={latestData.pi1 >= 2.0 || latestData.pi3 >= 2.0}
-                          onToggleUapManual={(nextVal: boolean) => {
-                            handleUapStatusToggle(nextVal);
-                            triggerSyncFeedback('Katup Uap Manual', nextVal ? 'DIBUKA' : 'DITUTUP');
-                          }}
-                          onToggleUapAuto={(nextVal: boolean) => {
-                            handleUapAutoToggle(nextVal);
-                            triggerSyncFeedback('Katup Uap Otomatis', nextVal ? 'AKTIF' : 'NONAKTIF');
-                          }}
-                          onChangeUapInterval={(min: number) => {
-                            handleUapIntervalChange(min);
-                            triggerSyncFeedback('Interval Katup Uap', `${min} Menit`);
-                          }}
-                        />
-                      )}
-
-                      {/* 3. Katup Solenoid Air Dingin (KANAN) */}
-                      <div id="tour-cold-valve" className="flex flex-col h-full">
-                        <div className="p-3.5 sm:p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 flex flex-col justify-between h-full shadow-2xs">
-                          <div className="flex justify-between items-center gap-2">
-                            <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5 truncate">
-                              <Droplets className="w-4 h-4 text-sky-600 shrink-0" />
-                              <span className="truncate font-extrabold">Katup Solenoid Air Dingin</span>
-                            </label>
-                            {supabaseControls.control_mode === 'AUTO' ? (
-                              <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-md border bg-sky-50 text-sky-700 border-sky-200 shadow-2xs">
-                                AUTO: OPEN
+                          {/* Switch Control Mode (AUTO / MANUAL) */}
+                          <div id="tour-control-mode" className="p-2.5 sm:p-4 bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-200 space-y-1.5 sm:space-y-2.5">
+                            <div className="flex justify-between items-center gap-2">
+                              <label className="text-[11px] sm:text-xs font-bold text-slate-800 flex items-center gap-1.5 truncate">
+                                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-600 shrink-0" />
+                                <span className="truncate">Mode Kendali Operasi</span>
+                              </label>
+                              <span className="text-[9.5px] sm:text-[10px] text-slate-500 font-semibold shrink-0 whitespace-nowrap">
+                                Status: <strong className="text-sky-700">{supabaseControls.control_mode}</strong>
                               </span>
-                            ) : (
-                              <span
-                                className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-md border ${
-                                  supabaseControls.air_dingin
-                                    ? 'bg-sky-50 text-sky-700 border-sky-200 shadow-2xs'
-                                    : 'bg-slate-100 text-slate-600 border-slate-200'
-                                }`}
-                              >
-                                {supabaseControls.air_dingin ? 'OPEN' : 'CLOSED'}
-                              </span>
-                            )}
-                          </div>
+                            </div>
 
-                          <div className="space-y-3 flex-1 flex flex-col justify-between">
-                            <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-2 flex flex-col justify-between">
-                              <div className="flex justify-between items-center">
-                                <span className="text-[11px] font-bold text-slate-700">Pasokan Air Dingin</span>
-                                <span
-                                  className={`w-2.5 h-2.5 rounded-full ${
-                                    supabaseControls.control_mode === 'AUTO' || supabaseControls.air_dingin
-                                      ? 'bg-sky-500 animate-pulse ring-2 ring-sky-200'
-                                      : 'bg-slate-300'
-                                  }`}
-                                />
-                              </div>
+                            <div className="grid grid-cols-2 p-1 sm:p-1.5 bg-gradient-to-r from-slate-200/80 via-slate-100 to-slate-200/80 rounded-xl sm:rounded-2xl border border-slate-300/60 shadow-inner gap-1 sm:gap-1.5">
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const nextVal = !supabaseControls.air_dingin;
-                                  handleAirDinginToggle(nextVal);
-                                  triggerSyncFeedback('Katup Air Dingin', nextVal ? 'DIBUKA' : 'DITUTUP');
+                                  handleControlModeChange('AUTO');
+                                  setOperationMode('Counter-Current');
+                                  triggerSyncFeedback('Mode Operasi AUTO', 'Sistem Mengelola Heater & Katup Otomatis');
                                 }}
                                 disabled={emergencyStopped}
-                                className={`w-full py-2 min-h-[38px] rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-98 ${
-                                  supabaseControls.air_dingin
-                                    ? 'bg-slate-900 text-white hover:bg-slate-800'
-                                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
-                                }`}
-                              >
-                                <Power className="w-3.5 h-3.5 text-sky-500" />
-                                <span>{supabaseControls.air_dingin ? 'Tutup Katup Dingin' : 'Buka Katup Dingin'}</span>
-                                {supabaseControls.control_mode === 'AUTO' && (
-                                  <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 border border-sky-200">
-                                    Override Manual
-                                  </span>
-                                )}
-                              </button>
-                            </div>
-
-                            <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1">
-                              <div className="flex justify-between items-center text-[11px]">
-                                <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                                  <Droplets className="w-3.5 h-3.5 text-sky-600" /> Pendingin Shell/Tube
-                                </span>
-                                <span
-                                  className={`font-black text-[10.5px] ${
-                                    supabaseControls.control_mode === 'AUTO' || supabaseControls.air_dingin
-                                      ? 'text-sky-700'
-                                      : 'text-slate-500'
+                                className={`py-2 sm:py-3 px-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-black transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 ${supabaseControls.control_mode === 'AUTO'
+                                  ? 'bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 text-white shadow-md shadow-sky-500/20 border border-sky-400/40'
+                                  : 'bg-white/70 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/60'
                                   }`}
-                                >
-                                  {supabaseControls.control_mode === 'AUTO' || supabaseControls.air_dingin ? 'AKTIF' : 'TERTUTUP'}
-                                </span>
-                              </div>
-                              <p className="text-[10px] text-slate-500 font-medium pt-1">
-                                Mengatur aliran air pendingin masuk ke pipa penukar panas.
-                              </p>
+                              >
+                                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                                <span>AUTO</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleControlModeChange('MANUAL');
+                                  triggerSyncFeedback('Mode Operasi MANUAL', 'Kendali Bebas Operator Aktif');
+                                }}
+                                disabled={emergencyStopped}
+                                className={`py-2 sm:py-3 px-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-black transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 ${supabaseControls.control_mode === 'MANUAL'
+                                  ? 'bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 text-white shadow-md shadow-sky-500/20 border border-sky-400/40'
+                                  : 'bg-white/70 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/60'
+                                  }`}
+                              >
+                                <Sliders className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                                <span>MANUAL</span>
+                              </button>
                             </div>
                           </div>
 
-                          <p className="text-[10px] text-slate-500 font-medium px-0.5">
-                            *Pasokan fluida dingin untuk menyerap panas dari sirkuit utama.
-                          </p>
+                          {/* Switch Mode Aliran (COUNTER / CO-CURRENT) */}
+                          <FlowModeSelector
+                            variant="control"
+                            currentFlowMode={supabaseControls.flow_mode}
+                            disabled={emergencyStopped}
+                            onSelectMode={(modeCode, friendlyMode) => {
+                              setOperationMode(friendlyMode);
+                              handleFlowModeChange(modeCode);
+                              triggerSyncFeedback('Arah Aliran', modeCode === 'CO-CURRENT' ? 'CO-CURRENT' : 'COUNTER-CURRENT');
+                            }}
+                          />
+
+                          {/* BARIS 1: SISTEM DUAL HEATER (HEATER 1 & HEATER 2) + THERMOSTAT SETUP & PANEL KALIBRASI */}
+                          <DualHeatersControl
+                            controlMode={supabaseControls.control_mode}
+                            targetTemp={supabaseControls.target_temp ?? tc1Setpoint ?? 50}
+                            targetTempHot={supabaseControls.target_temp_hot ?? supabaseControls.target_temp ?? 50.0}
+                            toleranceLevel={supabaseControls.tolerance_level ?? 1}
+                            upperLimit={supabaseControls.upper_limit}
+                            lowerLimit={supabaseControls.lower_limit}
+                            flowCalibrationFactor={supabaseControls.flow_calibration_factor ?? 7.90}
+                            flowCalibrationFactor1={supabaseControls.flow_calibration_factor_1 ?? supabaseControls.flow_calibration_factor ?? 7.90}
+                            flowCalibrationFactor2={supabaseControls.flow_calibration_factor_2 ?? 7.90}
+                            tempOffset={supabaseControls.temp_offset ?? 0.0}
+                            pressureOffset={supabaseControls.pressure_offset ?? 0.0}
+                            heater1Status={supabaseControls.btn_onoff !== undefined ? supabaseControls.btn_onoff : (supabaseControls.heater_1_status ?? false)}
+                            heater2Status={supabaseControls.heater_2_status !== undefined ? supabaseControls.heater_2_status : false}
+                            emergencyStopped={emergencyStopped}
+                            isBtnUpActive={activeMomentaryButtons.btn_up}
+                            isBtnDownActive={activeMomentaryButtons.btn_down}
+                            isUpdatingControl={isUpdatingControl}
+                            onToggleHeater1={async (nextState) => {
+                              triggerSyncFeedback('Heater 1', nextState ? 'ON' : 'OFF');
+                              await handleHeater1PowerToggle(nextState);
+                            }}
+                            onToggleHeater2={async (nextState) => {
+                              triggerSyncFeedback('Heater 2 (Booster)', nextState ? 'ON' : 'OFF');
+                              await handleHeater2PowerToggle(nextState);
+                            }}
+                            onAdjustSetPoint={async (delta) => {
+                              const currentSp = supabaseControls.target_temp_hot ?? supabaseControls.target_temp ?? 50.0;
+                              const currentTol = supabaseControls.tolerance_level ?? 1;
+                              const newSp = Math.min(90, Math.max(20, currentSp + delta));
+                              triggerSyncFeedback('Kontrol Point Utama', `${newSp.toFixed(1)}°C`);
+                              await handleThermostatSetupChange(newSp, currentTol);
+                            }}
+                            onAdjustTolerance={async (delta) => {
+                              const currentSp = supabaseControls.target_temp_hot ?? supabaseControls.target_temp ?? 50.0;
+                              const currentTol = supabaseControls.tolerance_level ?? 1;
+                              const newTol = Math.min(7, Math.max(1, currentTol + delta));
+                              triggerSyncFeedback('Level Toleransi', `P${newTol} (±${newTol}.0°C)`);
+                              await handleThermostatSetupChange(currentSp, newTol);
+                            }}
+                            onSaveThermostatSetup={async (sp, tol) => {
+                              triggerSyncFeedback('Thermostat Setup', `KP: ${sp}°C | P${tol}`);
+                              await handleThermostatSetupChange(sp, tol);
+                            }}
+                            onSaveCalibration={async (flowCal1, flowCal2, tOffset, pOffset) => {
+                              triggerSyncFeedback('Kalibrasi Sensor', `Flow Dingin: ${flowCal1} | Flow Panas: ${flowCal2} | Temp: ${tOffset}°C | Press: ${pOffset}bar`);
+                              await handleSensorCalibrationChange(flowCal1, flowCal2, tOffset, pOffset);
+                            }}
+                            targetUpper={supabaseControls.target_upper ?? 60}
+                            targetLower={supabaseControls.target_lower ?? 45}
+                            onSaveThermostatLimits={async (up, low) => {
+                              triggerSyncFeedback('Thermostat Limit', `H2 OFF: ${up}°C | H2 ON: ${low}°C`);
+                              await handleThermostatLimitsChange(up, low);
+                            }}
+                          />
+
+                          {/* BARIS 2: POMPA SIRKULASI (KIRI), KATUP SOLENOID UAP (TENGAH - ADMIN ONLY), KATUP AIR DINGIN (KANAN) */}
+                          <div className={`col-span-1 lg:col-span-2 grid grid-cols-1 md:grid-cols-2 ${currentUser.role === 'admin' ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-3.5 sm:gap-4 items-stretch`}>
+                            {/* 1. Pompa Sirkulasi (KIRI) */}
+                            <PumpControl
+                              controlMode={supabaseControls.control_mode}
+                              pompaStatus={supabaseControls.pompa_ekstra ?? false}
+                              emergencyStopped={emergencyStopped}
+                              onTogglePompa={(nextState) => {
+                                handlePompaToggle(nextState);
+                                triggerSyncFeedback('Pompa Sirkulasi', nextState ? 'POMPA NYALA (ON)' : 'POMPA MATI (OFF)');
+                              }}
+                            />
+
+                            {/* 2. Katup Solenoid Uap (TENGAH - HANYA ADMIN) */}
+                            {currentUser.role === 'admin' && (
+                              <SteamValveControl
+                                controlMode={supabaseControls.control_mode}
+                                uapStatus={supabaseControls.uap_status ?? false}
+                                uapAutoStatus={supabaseControls.control_mode === 'AUTO' ? true : (supabaseControls.uap_auto_status ?? false)}
+                                uapIntervalMin={supabaseControls.uap_interval_min ?? 5}
+                                emergencyStopped={emergencyStopped}
+                                isPressureDangerous={latestData.pi1 >= 2.0 || latestData.pi3 >= 2.0}
+                                onToggleUapManual={(nextVal: boolean) => {
+                                  handleUapStatusToggle(nextVal);
+                                  triggerSyncFeedback('Katup Uap Manual', nextVal ? 'DIBUKA' : 'DITUTUP');
+                                }}
+                                onToggleUapAuto={(nextVal: boolean) => {
+                                  handleUapAutoToggle(nextVal);
+                                  triggerSyncFeedback('Katup Uap Otomatis', nextVal ? 'AKTIF' : 'NONAKTIF');
+                                }}
+                                onChangeUapInterval={(min: number) => {
+                                  handleUapIntervalChange(min);
+                                  triggerSyncFeedback('Interval Katup Uap', `${min} Menit`);
+                                }}
+                              />
+                            )}
+
+                            {/* 3. Katup Solenoid Air Dingin (KANAN) */}
+                            <div id="tour-cold-valve" className="flex flex-col h-full">
+                              <div className="p-3.5 sm:p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 flex flex-col justify-between h-full shadow-2xs">
+                                <div className="flex justify-between items-center gap-2">
+                                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5 truncate">
+                                    <Droplets className="w-4 h-4 text-sky-600 shrink-0" />
+                                    <span className="truncate font-extrabold">Katup Solenoid Air Dingin</span>
+                                  </label>
+                                  {supabaseControls.control_mode === 'AUTO' ? (
+                                    <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-md border bg-sky-50 text-sky-700 border-sky-200 shadow-2xs">
+                                      AUTO: OPEN
+                                    </span>
+                                  ) : (
+                                    <span
+                                      className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-md border ${supabaseControls.air_dingin
+                                          ? 'bg-sky-50 text-sky-700 border-sky-200 shadow-2xs'
+                                          : 'bg-slate-100 text-slate-600 border-slate-200'
+                                        }`}
+                                    >
+                                      {supabaseControls.air_dingin ? 'OPEN' : 'CLOSED'}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="space-y-3 flex-1 flex flex-col justify-between">
+                                  <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-2 flex flex-col justify-between">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[11px] font-bold text-slate-700">Pasokan Air Dingin</span>
+                                      <span
+                                        className={`w-2.5 h-2.5 rounded-full ${supabaseControls.control_mode === 'AUTO' || supabaseControls.air_dingin
+                                            ? 'bg-sky-500 animate-pulse ring-2 ring-sky-200'
+                                            : 'bg-slate-300'
+                                          }`}
+                                      />
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const nextVal = !supabaseControls.air_dingin;
+                                        handleAirDinginToggle(nextVal);
+                                        triggerSyncFeedback('Katup Air Dingin', nextVal ? 'DIBUKA' : 'DITUTUP');
+                                      }}
+                                      disabled={emergencyStopped}
+                                      className={`w-full py-2 min-h-[38px] rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-98 ${supabaseControls.air_dingin
+                                          ? 'bg-slate-900 text-white hover:bg-slate-800'
+                                          : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                                        }`}
+                                    >
+                                      <Power className="w-3.5 h-3.5 text-sky-500" />
+                                      <span>{supabaseControls.air_dingin ? 'Tutup Katup Dingin' : 'Buka Katup Dingin'}</span>
+                                    </button>
+                                  </div>
+
+                                  <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1">
+                                    <div className="flex justify-between items-center text-[11px]">
+                                      <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                                        <Droplets className="w-3.5 h-3.5 text-sky-600" /> Pendingin Shell/Tube
+                                      </span>
+                                      <span
+                                        className={`font-black text-[10.5px] ${supabaseControls.control_mode === 'AUTO' || supabaseControls.air_dingin
+                                            ? 'text-sky-700'
+                                            : 'text-slate-500'
+                                          }`}
+                                      >
+                                        {supabaseControls.control_mode === 'AUTO' || supabaseControls.air_dingin ? 'AKTIF' : 'TERTUTUP'}
+                                      </span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 font-medium pt-1">
+                                      Mengatur aliran air pendingin masuk ke pipa penukar panas.
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <p className="text-[10px] text-slate-500 font-medium px-0.5">
+                                  *Pasokan fluida dingin untuk menyerap panas dari sirkuit utama.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Pengaturan Katup Aliran (Katup Panas & Katup Dingin: 0, 20, 40, 60, 80, 100%) */}
+                          <FlowAndValvesControl
+                            controlMode={supabaseControls.control_mode}
+                            emergencyStopped={emergencyStopped || !isHardwareOnline}
+                            fc1Valve={supabaseControls.servo_angle !== undefined ? supabaseControls.servo_angle : fc1Valve}
+                            onChangeFc1Valve={(val) => {
+                              setFc1Valve(val);
+                              handleValve1Change(val);
+                              triggerSyncFeedback('Katup FC1 (Air Panas)', `${val}%`);
+                            }}
+                            fc2Valve={supabaseControls.servo_angle_2 !== undefined ? supabaseControls.servo_angle_2 : fc2Valve}
+                            onChangeFc2Valve={(val) => {
+                              setFc2Valve(val);
+                              handleValve2Change(val);
+                              triggerSyncFeedback('Katup FC2 (Air Dingin)', `${val}%`);
+                            }}
+                          />
+
                         </div>
                       </div>
                     </div>
 
-                    {/* Pengaturan Katup Aliran (Katup Panas & Katup Dingin: 0, 20, 40, 60, 80, 100%) */}
-                    <FlowAndValvesControl
-                      controlMode={supabaseControls.control_mode}
-                      emergencyStopped={emergencyStopped}
-                      fc1Valve={supabaseControls.servo_angle !== undefined ? supabaseControls.servo_angle : fc1Valve}
-                      onChangeFc1Valve={(val) => {
-                        setFc1Valve(val);
-                        handleValve1Change(val);
-                        triggerSyncFeedback('Katup FC1 (Air Panas)', `${val}%`);
-                      }}
-                      fc2Valve={supabaseControls.servo_angle_2 !== undefined ? supabaseControls.servo_angle_2 : fc2Valve}
-                      onChangeFc2Valve={(val) => {
-                        setFc2Valve(val);
-                        handleValve2Change(val);
-                        triggerSyncFeedback('Katup FC2 (Air Dingin)', `${val}%`);
-                      }}
-                    />
+                    {/* OVERLAY NOTICE: KETIKA MESIN OFFLINE / MATI (Dapat Ditutup dengan Tombol X) */}
+                    {!isHardwareOnline && !isControlOfflineModalDismissed && (
+                      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-900/40 backdrop-blur-xs">
+                        <div className="max-w-md w-full bg-white/95 rounded-2xl p-5 sm:p-6 shadow-2xl border border-rose-200 text-center space-y-3 animate-in zoom-in-95 duration-200 relative">
+                          {/* Tombol X untuk Menutup Peringatan & Menghilangkan Blur */}
+                          <button
+                            type="button"
+                            onClick={() => setIsControlOfflineModalDismissed(true)}
+                            className="absolute top-3.5 right-3.5 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                            title="Tutup Peringatan (Tombol Tetap Terkunci)"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
 
+                          <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto border border-rose-200 shadow-xs">
+                            <Lock className="w-6 h-6 animate-pulse" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm sm:text-base font-black text-slate-900">
+                              Kontrol Panel Dibekukan
+                            </h4>
+                            <p className="text-xs text-rose-700 font-bold mt-0.5">
+                              Mesin Tidak Aktif (Hardware Offline)
+                            </p>
+                          </div>
+                          <p className="text-[11px] sm:text-xs text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                            Semua tombol kendali pemanas, katup, dan pengaturan thermostat dikunci demi keselamatan sampai mesin menyala dan terhubung ke sistem.
+                          </p>
+                          <div className="flex items-center justify-center gap-1.5 text-[10.5px] font-bold text-slate-500">
+                            <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                            <span>Menunggu koneksi hardware mesin...</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-
               </div>
-            </div>
-          )}
+            )}
 
-          {/* TAB 3: CCTV LIVE MONITORING */}
-          {activeTab === 'cctv' && (
-            <CctvTab
-              selectedCamera={selectedCamera}
-              setSelectedCamera={setSelectedCamera}
-              cctvStreamSource={cctvStreamSource}
-              setCctvStreamSource={setCctvStreamSource}
-              cctvIpUrl={cctvIpUrl}
-              setCctvIpUrl={setCctvIpUrl}
-              cctvPublicUrl={cctvPublicUrl}
-              setCctvPublicUrl={setCctvPublicUrl}
-              cctvAudioMuted={cctvAudioMuted}
-              setCctvAudioMuted={setCctvAudioMuted}
-              audioUserActivated={audioUserActivated}
-              setAudioUserActivated={setAudioUserActivated}
-              cctvVolume={cctvVolume}
-              setCctvVolume={setCctvVolume}
-              cctvRecording={cctvRecording}
-              setCctvRecording={setCctvRecording}
-              isManualRecording={isManualRecording}
-              recordingSeconds={recordingSeconds}
-              cctvToast={cctvToast}
-              webrtcConnected={webrtcConnected}
-              webrtcError={webrtcError}
-              videoRef={videoRef}
-              connectWebRTC={connectWebRTC}
-              handleTakeSnapshot={handleTakeSnapshot}
-              handleToggleManualRecord={handleToggleManualRecord}
-              triggerCctvToast={triggerCctvToast}
-              handlePtzAction={handlePtzAction}
-              handlePtzPreset={handlePtzPreset}
-              ptzMoving={ptzMoving}
-              latestData={latestData}
-              isHardwareOnline={isHardwareOnline}
-              tempLabels={tempLabels}
-              cctvMediaList={cctvMediaList}
-            />
-          )}
+            {/* TAB 3: CCTV LIVE MONITORING */}
+            {activeTab === 'cctv' && (
+              <CctvTab
+                selectedCamera={selectedCamera}
+                setSelectedCamera={setSelectedCamera}
+                cctvStreamSource={cctvStreamSource}
+                setCctvStreamSource={setCctvStreamSource}
+                cctvIpUrl={cctvIpUrl}
+                setCctvIpUrl={setCctvIpUrl}
+                cctvPublicUrl={cctvPublicUrl}
+                setCctvPublicUrl={setCctvPublicUrl}
+                cctvAudioMuted={cctvAudioMuted}
+                setCctvAudioMuted={setCctvAudioMuted}
+                audioUserActivated={audioUserActivated}
+                setAudioUserActivated={setAudioUserActivated}
+                cctvVolume={cctvVolume}
+                setCctvVolume={setCctvVolume}
+                cctvRecording={cctvRecording}
+                setCctvRecording={setCctvRecording}
+                isManualRecording={isManualRecording}
+                recordingSeconds={recordingSeconds}
+                cctvToast={cctvToast}
+                webrtcConnected={webrtcConnected}
+                webrtcError={webrtcError}
+                videoRef={videoRef}
+                connectWebRTC={connectWebRTC}
+                handleTakeSnapshot={handleTakeSnapshot}
+                handleToggleManualRecord={handleToggleManualRecord}
+                triggerCctvToast={triggerCctvToast}
+                handlePtzAction={handlePtzAction}
+                handlePtzPreset={handlePtzPreset}
+                ptzMoving={ptzMoving}
+                latestData={latestData}
+                isHardwareOnline={isHardwareOnline}
+                tempLabels={tempLabels}
+                cctvMediaList={cctvMediaList}
+              />
+            )}
 
-          {/* TAB 4: DATA LOGS & EXPORT LAPORAN */}
-          {activeTab === 'logs' && (
-            <LogsTab
-              filteredLogsData={filteredLogsData}
-              logInterval={logInterval}
-              setLogInterval={setLogInterval}
-              dateFilter={dateFilter}
-              setDateFilter={setDateFilter}
-              logSearchQuery={logSearchQuery}
-              setLogSearchQuery={setLogSearchQuery}
-              isUploading={isUploading}
-              handleExportAndUpload={handleExportAndUpload}
-              handleExportCurrentSessionExcel={handleExportCurrentSessionExcel}
-              handleExportAllClassesExcel={handleExportAllClassesExcel}
-              handleCloudDriveAccess={handleCloudDriveAccess}
-              systemStatus={systemState}
-              currentSession={currentSession}
-              archivedSessions={archivedSessions}
-              selectedSessionId={selectedLogsSessionId}
-              setSelectedSessionId={setSelectedLogsSessionId}
-              onOpenStartup={() => setIsStartupModalOpen(true)}
-              currentUser={currentUser}
-              classFilter={classFilter}
-              setClassFilter={setClassFilter}
-              classesList={classesList}
-              onClearActiveSession={handleClearActiveSession}
-            />
-          )}
+            {/* TAB 4: DATA LOGS & EXPORT LAPORAN */}
+            {activeTab === 'logs' && (
+              <LogsTab
+                filteredLogsData={filteredLogsData}
+                logInterval={logInterval}
+                setLogInterval={setLogInterval}
+                dateFilter={dateFilter}
+                setDateFilter={setDateFilter}
+                logSearchQuery={logSearchQuery}
+                setLogSearchQuery={setLogSearchQuery}
+                isUploading={isUploading}
+                handleExportAndUpload={handleExportAndUpload}
+                handleExportCurrentSessionExcel={handleExportCurrentSessionExcel}
+                handleExportAllClassesExcel={handleExportAllClassesExcel}
+                handleCloudDriveAccess={handleCloudDriveAccess}
+                systemStatus={systemState}
+                currentSession={currentSession}
+                archivedSessions={archivedSessions}
+                selectedSessionId={selectedLogsSessionId}
+                setSelectedSessionId={setSelectedLogsSessionId}
+                onOpenStartup={() => setIsStartupModalOpen(true)}
+                currentUser={currentUser}
+                classFilter={classFilter}
+                setClassFilter={setClassFilter}
+                classesList={classesList}
+                onClearActiveSession={handleClearActiveSession}
+              />
+            )}
 
-          {/* TAB 5: ALARM SYSTEM */}
-          {activeTab === 'alarms' && (
-            <AlarmsTab
-              ti1MaxThreshold={ti1MaxThreshold}
-              setTi1MaxThreshold={setTi1MaxThreshold}
-              deltaPMaxThreshold={deltaPMaxThreshold}
-              setDeltaPMaxThreshold={setDeltaPMaxThreshold}
-              soundEnabled={soundEnabled}
-              setSoundEnabled={setSoundEnabled}
-              alarmLogs={alarmLogs}
-              setAlarmLogs={setAlarmLogs}
-            />
-          )}
+            {/* TAB 5: ALARM SYSTEM */}
+            {activeTab === 'alarms' && (
+              <AlarmsTab
+                ti1MaxThreshold={ti1MaxThreshold}
+                setTi1MaxThreshold={setTi1MaxThreshold}
+                deltaPMaxThreshold={deltaPMaxThreshold}
+                setDeltaPMaxThreshold={setDeltaPMaxThreshold}
+                soundEnabled={soundEnabled}
+                setSoundEnabled={setSoundEnabled}
+                alarmLogs={alarmLogs}
+                setAlarmLogs={setAlarmLogs}
+              />
+            )}
 
-          {/* TAB 6: USER MANAGEMENT & SESSION LIMITS (2-TIER ROLE ACCESS) */}
-          {activeTab === 'users' && (
-            <UsersTab
-              currentUser={currentUser}
-              setCurrentUser={setCurrentUser}
-              usersList={usersList}
-              setUsersList={setUsersList}
-              operatorSessionLimit={operatorSessionLimit}
-              setOperatorSessionLimit={setOperatorSessionLimit}
-              setOperatorSessionRemaining={setOperatorSessionRemaining}
-              resendingEmailFor={resendingEmailFor}
-              handleResendUserCredentials={handleResendUserCredentials}
-              onOpenResetPasswordModal={(email) => {
-                setIsResetModalOpen(true);
-                setResetEmailInput(email);
-                setResetStep('INPUT_EMAIL');
-                setResetError(null);
-              }}
-              showAddUserModal={showAddUserModal}
-              setShowAddUserModal={setShowAddUserModal}
-              newUserName={newUserName}
-              setNewUserName={setNewUserName}
-              newUserEmail={newUserEmail}
-              setNewUserEmail={setNewUserEmail}
-              newUserRole={newUserRole}
-              setNewUserRole={setNewUserRole}
-              isAddingUser={isAddingUser}
-              lastCreatedUserCredentials={lastCreatedUserCredentials}
-              setLastCreatedUserCredentials={setLastCreatedUserCredentials}
-              setAddUserSuccessMsg={setAddUserSuccessMsg}
-              handleCreateUser={handleCreateUser}
-              userToDelete={userToDelete}
-              setUserToDelete={setUserToDelete}
-            />
-          )}
+            {/* TAB 6: USER MANAGEMENT & SESSION LIMITS (2-TIER ROLE ACCESS) */}
+            {activeTab === 'users' && (
+              <UsersTab
+                currentUser={currentUser}
+                setCurrentUser={setCurrentUser}
+                usersList={usersList}
+                setUsersList={setUsersList}
+                operatorSessionLimit={operatorSessionLimit}
+                setOperatorSessionLimit={setOperatorSessionLimit}
+                setOperatorSessionRemaining={setOperatorSessionRemaining}
+                userPasswords={userPasswords}
+                setUserPasswords={setUserPasswords}
+                addUserError={addUserError}
+                setAddUserError={setAddUserError}
+                resendingEmailFor={resendingEmailFor}
+                handleResendUserCredentials={handleResendUserCredentials}
+                onOpenResetPasswordModal={(email) => {
+                  setIsResetModalOpen(true);
+                  setResetEmailInput(email);
+                  setResetStep('INPUT_EMAIL');
+                  setResetError(null);
+                }}
+                showAddUserModal={showAddUserModal}
+                setShowAddUserModal={setShowAddUserModal}
+                newUserName={newUserName}
+                setNewUserName={setNewUserName}
+                newUserEmail={newUserEmail}
+                setNewUserEmail={setNewUserEmail}
+                newUserRole={newUserRole}
+                setNewUserRole={setNewUserRole}
+                isAddingUser={isAddingUser}
+                lastCreatedUserCredentials={lastCreatedUserCredentials}
+                setLastCreatedUserCredentials={setLastCreatedUserCredentials}
+                setAddUserSuccessMsg={setAddUserSuccessMsg}
+                handleCreateUser={handleCreateUser}
+                userToDelete={userToDelete}
+                setUserToDelete={setUserToDelete}
+              />
+            )}
 
-          {/* TAB 7: MASTER DATA & SESSION MANAGER (ADMIN ONLY) */}
-          {activeTab === 'sessions' && currentUser.role === 'admin' && (
-            <SessionManagerTab
-              archivedSessions={archivedSessions}
-              currentSession={currentSession}
-              onRefreshSessions={() => fetchSessions(currentUser.role, currentUser.email, classFilter)}
-              onSelectSessionForLogs={(sessionId) => {
-                if (currentSession && sessionId === currentSession.id) {
-                  setSelectedLogsSessionId('CURRENT');
-                } else {
-                  setSelectedLogsSessionId(sessionId);
-                }
-                setActiveTab('logs');
-              }}
-              onExportMasterExcel={handleExportAllClassesExcel}
-              onExportSessionExcel={handleExportCurrentSessionExcel}
-              onClearActiveSession={handleClearActiveSession}
-            />
-          )}
+            {/* TAB 7: MASTER DATA & SESSION MANAGER (ADMIN ONLY) */}
+            {activeTab === 'sessions' && currentUser.role === 'admin' && (
+              <SessionManagerTab
+                archivedSessions={archivedSessions}
+                currentSession={currentSession}
+                onRefreshSessions={() => fetchSessions(currentUser.role, currentUser.email, classFilter)}
+                onSelectSessionForLogs={(sessionId) => {
+                  if (currentSession && sessionId === currentSession.id) {
+                    setSelectedLogsSessionId('CURRENT');
+                  } else {
+                    setSelectedLogsSessionId(sessionId);
+                  }
+                  setActiveTab('logs');
+                }}
+                onExportMasterExcel={handleExportAllClassesExcel}
+                onExportSessionExcel={handleExportCurrentSessionExcel}
+                onClearActiveSession={handleClearActiveSession}
+              />
+            )}
 
-        </main>
-      </div>
+          </main>
+        </div>
       )}
 
       {/* ─── SECURE EMAIL OTP PASSWORD RESET MODAL (ACCESSIBLE FROM USER MANAGEMENT & PROFILE) ─── */}
@@ -4901,6 +4969,20 @@ export default function FluidHEDashboard() {
         setActiveTab={setActiveTab}
         userRole={currentUser?.role || 'operator'}
       />
+
+      {/* ─── TRIPLECYCLE BRANDING BADGE DI DASHBOARD (Pojok Kiri Bawah) ─── */}
+      <div
+        className="fixed bottom-16 md:bottom-4 left-3 sm:left-4 z-40 select-none group pointer-events-auto no-print"
+        title="TripleCycle System"
+      >
+        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white shadow-[0_8px_25px_-4px_rgba(0,0,0,0.25)] border-2 border-slate-200/90 hover:border-sky-400 transition-all duration-300 transform group-hover:scale-110 group-hover:shadow-[0_12px_30px_-4px_rgba(0,0,0,0.35)] flex items-center justify-center overflow-hidden">
+          <img
+            src="/triplecycle-logo.png"
+            alt="TripleCycle Logo"
+            className="w-full h-full object-contain p-1 rounded-full"
+          />
+        </div>
+      </div>
 
     </div>
   );

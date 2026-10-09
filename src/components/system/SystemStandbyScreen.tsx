@@ -22,6 +22,7 @@ export interface SystemStandbyScreenProps {
   operatorName: string;
   defaultFlowMode?: string;
   onStartSystem: (sessionTitle: string) => void;
+  onEnterGuestMode?: () => void;
   recentArchivesCount?: number;
 }
 
@@ -64,6 +65,7 @@ export const SystemStandbyScreen: React.FC<SystemStandbyScreenProps> = ({
   operatorName,
   defaultFlowMode = 'Counter-Current',
   onStartSystem,
+  onEnterGuestMode,
   recentArchivesCount = 0
 }) => {
   const [sessionTitle, setSessionTitle] = useState<string>('');
@@ -215,16 +217,28 @@ export const SystemStandbyScreen: React.FC<SystemStandbyScreenProps> = ({
                 </div>
               </div>
 
-              {/* Big Soft Blue Action Button (Sesuai Foto 2) */}
-              <div className="pt-1">
+              {/* Dual Action Buttons: 1. Memulai Sistem (dengan IoT) & 2. Login sebagai Tamu (Ambil Data Tanpa Mulai Alat) */}
+              <div className="pt-1 space-y-2">
                 <button
                   type="button"
                   onClick={handleStart}
                   className="w-full py-3.5 sm:py-4 px-6 rounded-2xl text-xs sm:text-sm font-black text-white bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 shadow-lg shadow-blue-600/30 border border-sky-300/30 transition-all duration-200 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2.5 group ring-4 ring-sky-400/20"
                 >
                   <Play className="w-4 h-4 fill-white text-white group-hover:scale-110 transition-transform" />
-                  <span>HIDUPKAN SISTEM & MULAI SESI</span>
+                  <span>MEMULAI SISTEM (DENGAN IOT)</span>
                 </button>
+
+                {onEnterGuestMode && (
+                  <button
+                    type="button"
+                    onClick={onEnterGuestMode}
+                    className="w-full py-2 px-3 text-[11px] font-semibold text-slate-500 hover:text-sky-700 bg-white/70 hover:bg-white border border-slate-200/90 hover:border-sky-300/80 rounded-xl transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs hover:shadow-xs active:scale-[0.99]"
+                    title="Masuk sebagai tamu untuk melihat atau mengambil data tanpa mengaktifkan mesin & pemanas"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Login sebagai Tamu (Hanya Ambil Data Tanpa Mulai Alat)</span>
+                  </button>
+                )}
               </div>
             </div>
           ) : (

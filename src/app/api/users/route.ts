@@ -28,52 +28,13 @@ const DEFAULT_DATA: { users: UserItem[]; passwords: Record<string, string> } = {
       status: 'Active',
       lastLogin: 'Belum Pernah',
       isScheduleRestricted: false
-    },
-    {
-      id: 'USR-07',
-      name: 'Operator B',
-      email: 'operator.b@itenas.ac.id',
-      role: 'operator',
-      status: 'Active',
-      lastLogin: 'Belum Pernah',
-      isScheduleRestricted: false
-    },
-    {
-      id: 'USR-08',
-      name: 'Admin B',
-      email: 'admin.b@itenas.ac.id',
-      role: 'admin',
-      status: 'Active',
-      lastLogin: 'Belum Pernah',
-      isScheduleRestricted: false
-    },
-    {
-      id: 'USR-09',
-      name: 'Operator Kelas A',
-      email: 'dwi.melianti@mhs.itenas.ac.id',
-      role: 'operator',
-      status: 'Active',
-      lastLogin: 'Belum Pernah',
-      isScheduleRestricted: false
     }
   ],
   passwords: {
     'anugrahtriplecycle@gmail.com': 'admin123',
     'admin@uad.ac.id': 'admin123',
     'admin.a@uad.ac.id': '1234.Admin',
-    'Admin A': '1234.Admin',
-    'admin a': '1234.Admin',
-    'admin.b@itenas.ac.id': 'zW8QDCw7',
-    'admin.b@uad.ac.id': 'zW8QDCw7',
-    'Admin B': 'zW8QDCw7',
-    'admin b': 'zW8QDCw7',
-    'operator.b@itenas.ac.id': 'emmrBXaG',
-    'operator.b@uad.ac.id': 'emmrBXaG',
-    'Operator B': 'emmrBXaG',
-    'operator b': 'emmrBXaG',
-    'dwi.melianti@mhs.itenas.ac.id': 'dfCXY6JJ',
-    'Operator Kelas A': 'dfCXY6JJ',
-    'operator kelas a': 'dfCXY6JJ'
+    'Admin A': '1234.Admin'
   }
 };
 
@@ -181,6 +142,44 @@ async function pushSupabaseUserSync(payload: any): Promise<void> {
   }
 }
 
+async function purgeSupabaseUserSync(cleanEmail?: string | null, id?: string | null): Promise<void> {
+  if (!cleanEmail && !id) return;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+
+    // 1. Purge all records from Supabase containing this email
+    if (cleanEmail) {
+      await fetch(`${SUPABASE_URL}/rest/v1/telemetry_data?warning_status=like.*${encodeURIComponent(cleanEmail)}*`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': DEFAULT_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${DEFAULT_SUPABASE_ANON_KEY}`,
+          'Prefer': 'return=minimal'
+        },
+        signal: controller.signal
+      });
+    }
+
+    // 2. Also purge any lingering sync rows for this ID
+    if (id) {
+      await fetch(`${SUPABASE_URL}/rest/v1/telemetry_data?warning_status=like.*\"${encodeURIComponent(id)}\"*`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': DEFAULT_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${DEFAULT_SUPABASE_ANON_KEY}`,
+          'Prefer': 'return=minimal'
+        },
+        signal: controller.signal
+      });
+    }
+
+    clearTimeout(timeout);
+  } catch (err) {
+    console.warn('[Users API] Failed to purge Supabase user sync:', err);
+  }
+}
+
 async function getMergedDatabase(): Promise<{ users: UserItem[]; passwords: Record<string, string> }> {
   const db = readDatabase();
   const syncItems = await fetchSupabaseUserSync();
@@ -241,15 +240,21 @@ async function getMergedDatabase(): Promise<{ users: UserItem[]; passwords: Reco
     } else if (action === 'delete') {
       const { id, email } = item;
       const cleanEmail = email ? email.toLowerCase().trim() : null;
-      const target = users.find(u => (id && u.id === id) || (cleanEmail && u.email.toLowerCase() === cleanEmail));
+      const target = users.find(u => (cleanEmail && u.email.toLowerCase() === cleanEmail) || (id && u.id === id));
       const filtered = users.filter(u => {
-        if (id && u.id === id) return false;
         if (cleanEmail && u.email.toLowerCase() === cleanEmail) return false;
+        if (!cleanEmail && id && u.id === id) return false;
         return true;
       });
       users.length = 0;
       users.push(...filtered);
-      if (cleanEmail) delete passwords[cleanEmail];
+      if (cleanEmail) {
+        delete passwords[cleanEmail];
+        delete passwords[cleanEmail.toLowerCase()];
+      }
+      if (target?.email) {
+        delete passwords[target.email.toLowerCase().trim()];
+      }
       if (target?.name) {
         delete passwords[target.name];
         delete passwords[target.name.toLowerCase()];
@@ -426,24 +431,36 @@ export async function DELETE(req: Request) {
 
     if (id || email) {
       const cleanEmail = email ? email.toLowerCase().trim() : null;
-      const target = db.users.find(u => (id && u.id === id) || (cleanEmail && u.email.toLowerCase() === cleanEmail));
+      const target = db.users.find(u => (cleanEmail && u.email.toLowerCase() === cleanEmail) || (id && u.id === id));
+      const targetEmail = target?.email ? target.email.toLowerCase().trim() : cleanEmail;
+      const targetId = target?.id || id;
 
       db.users = db.users.filter((u: UserItem) => {
-        if (id && u.id === id) return false;
-        if (cleanEmail && u.email.toLowerCase() === cleanEmail) return false;
+        if (targetEmail && u.email.toLowerCase().trim() === targetEmail) return false;
+        if (cleanEmail && u.email.toLowerCase().trim() === cleanEmail) return false;
+        if (!targetEmail && !cleanEmail && targetId && u.id === targetId) return false;
         return true;
       });
 
-      if (cleanEmail && db.passwords[cleanEmail]) {
+      // Thoroughly delete passwords for this user across all possible keys
+      if (targetEmail) {
+        delete db.passwords[targetEmail];
+        delete db.passwords[targetEmail.toLowerCase()];
+      }
+      if (cleanEmail) {
         delete db.passwords[cleanEmail];
+        delete db.passwords[cleanEmail.toLowerCase()];
       }
       if (target?.name) {
         delete db.passwords[target.name];
         delete db.passwords[target.name.toLowerCase()];
+        delete db.passwords[target.name.trim()];
       }
 
       writeDatabase(db);
-      await pushSupabaseUserSync({ action: 'delete', id: id || undefined, email: cleanEmail || undefined });
+
+      // Permanently purge all historical rows for this email and user ID from Supabase
+      await purgeSupabaseUserSync(targetEmail, targetId);
     }
 
     return NextResponse.json({

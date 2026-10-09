@@ -34,6 +34,12 @@ export interface UserManagerProps {
   handleResendUserCredentials: (u: UserItem) => void;
   onOpenResetPasswordModal: (email: string) => void;
 
+  // Passwords & Error State
+  userPasswords?: Record<string, string>;
+  setUserPasswords?: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  addUserError?: string | null;
+  setAddUserError?: (err: string | null) => void;
+
   // Add User State
   showAddUserModal: boolean;
   setShowAddUserModal: (show: boolean) => void;
@@ -59,6 +65,10 @@ export const UserManager: React.FC<UserManagerProps> = ({
   setCurrentUser,
   usersList,
   setUsersList,
+  userPasswords,
+  setUserPasswords,
+  addUserError,
+  setAddUserError,
   operatorSessionLimit,
   setOperatorSessionLimit,
   setOperatorSessionRemaining,
@@ -203,6 +213,7 @@ export const UserManager: React.FC<UserManagerProps> = ({
                   <td className="p-3 text-slate-500">{formatLastLogin(u.lastLogin)}</td>
                   <td className="p-3 text-center">
                     <div className="flex items-center justify-center gap-1.5">
+
                       {u.role !== 'operator' ? (
                         <button
                           onClick={() => onOpenResetPasswordModal(u.email)}
@@ -287,11 +298,30 @@ export const UserManager: React.FC<UserManagerProps> = ({
                     const data = await res.json();
                     if (data.success && Array.isArray(data.users)) {
                       setUsersList(data.users);
+                      if (data.passwords && setUserPasswords) {
+                        setUserPasswords(data.passwords);
+                      }
+                      try {
+                        localStorage.setItem('fluidhe_user_accounts', JSON.stringify(data.users));
+                      } catch (e) { }
                     } else {
-                      setUsersList(usersList.filter((x) => x.id !== userToDelete.id));
+                      const updated = usersList.filter((x) => x.id !== userToDelete.id && x.email.toLowerCase() !== userToDelete.email.toLowerCase());
+                      setUsersList(updated);
+                      if (setUserPasswords) {
+                        setUserPasswords((prev) => {
+                          const next = { ...prev };
+                          delete next[userToDelete.email.toLowerCase()];
+                          delete next[userToDelete.name];
+                          return next;
+                        });
+                      }
+                      try {
+                        localStorage.setItem('fluidhe_user_accounts', JSON.stringify(updated));
+                      } catch (e) { }
                     }
                   } catch (e) {
-                    setUsersList(usersList.filter((x) => x.id !== userToDelete.id));
+                    const updated = usersList.filter((x) => x.id !== userToDelete.id && x.email.toLowerCase() !== userToDelete.email.toLowerCase());
+                    setUsersList(updated);
                   }
                   setUserToDelete(null);
                 }}
@@ -326,6 +356,7 @@ export const UserManager: React.FC<UserManagerProps> = ({
                 onClick={() => {
                   setShowAddUserModal(false);
                   setAddUserSuccessMsg(null);
+                  setAddUserError?.(null);
                 }}
                 className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition"
               >
@@ -364,6 +395,7 @@ export const UserManager: React.FC<UserManagerProps> = ({
                   onClick={() => {
                     setShowAddUserModal(false);
                     setLastCreatedUserCredentials(null);
+                    setAddUserError?.(null);
                   }}
                   className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition"
                 >
@@ -372,6 +404,12 @@ export const UserManager: React.FC<UserManagerProps> = ({
               </div>
             ) : (
               <form onSubmit={handleCreateUser} className="space-y-3.5">
+                {addUserError && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs flex items-center gap-2 animate-in fade-in">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span className="font-semibold">{addUserError}</span>
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap Pengguna</label>
                   <input

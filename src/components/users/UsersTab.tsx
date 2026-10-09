@@ -17,6 +17,12 @@ export interface UsersTabProps {
   handleResendUserCredentials: (u: UserItem) => void;
   onOpenResetPasswordModal: (email: string) => void;
 
+  // Passwords & Error State
+  userPasswords?: Record<string, string>;
+  setUserPasswords?: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  addUserError?: string | null;
+  setAddUserError?: (err: string | null) => void;
+
   // Add User State
   showAddUserModal: boolean;
   setShowAddUserModal: (show: boolean) => void;
@@ -42,6 +48,10 @@ export const UsersTab: React.FC<UsersTabProps> = ({
   setCurrentUser,
   usersList,
   setUsersList,
+  userPasswords,
+  setUserPasswords,
+  addUserError,
+  setAddUserError,
   operatorSessionLimit,
   setOperatorSessionLimit,
   setOperatorSessionRemaining,
@@ -83,6 +93,10 @@ export const UsersTab: React.FC<UsersTabProps> = ({
             setCurrentUser={setCurrentUser}
             usersList={usersList}
             setUsersList={setUsersList}
+            userPasswords={userPasswords}
+            setUserPasswords={setUserPasswords}
+            addUserError={addUserError}
+            setAddUserError={setAddUserError}
             operatorSessionLimit={operatorSessionLimit}
             setOperatorSessionLimit={setOperatorSessionLimit}
             setOperatorSessionRemaining={setOperatorSessionRemaining}
