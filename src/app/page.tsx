@@ -375,6 +375,10 @@ export default function FluidHEDashboard() {
   const [classFilter, setClassFilter] = useState<string>('ALL');
   const [classesList, setClassesList] = useState<Array<{ operatorEmail: string; operatorName: string; classGroup?: string; count: number }>>([]);
 
+  // Flag Terpadu: Dianggap Online HANYA jika Hardware terhubung DAN Sistem dinyalakan (systemState === 'ACTIVE')
+  // Jika mesin mati / sistem OFF, penampilan dan pembatasan akses sama seperti ESP offline
+  const isSystemAndHardwareOnline = isHardwareOnline && systemState === 'ACTIVE';
+
   // Fetch role-isolated sessions from server (Server Master Database)
   const fetchSessions = useCallback(async (role: string, email: string, classFilterVal?: string) => {
     try {
@@ -1364,8 +1368,8 @@ export default function FluidHEDashboard() {
       return true;
     };
 
-    // Prioritaskan telemetri real-time tercepat langsung dari sensor Supabase HANYA JIKA HARDWARE ONLINE
-    if (isHardwareOnline && supabaseTelemetry && isHardwareValid(supabaseTelemetry)) {
+    // Prioritaskan telemetri real-time tercepat langsung dari sensor Supabase HANYA JIKA HARDWARE ONLINE & SISTEM AKTIF
+    if (isSystemAndHardwareOnline && supabaseTelemetry && isHardwareValid(supabaseTelemetry)) {
       const isHeaterOn = supabaseTelemetry.heater_status === 'ON' || Boolean(supabaseControls?.heater_1_status || supabaseControls?.heater_2_status);
       return {
         timestamp: supabaseTelemetry.created_at
@@ -1392,7 +1396,7 @@ export default function FluidHEDashboard() {
       };
     }
 
-    // 2. Default state saat hardware offline: Seluruh pembacaan sensor adalah 0 (tidak ada data masuk)
+    // 2. Default state saat hardware offline / sistem mati: Seluruh pembacaan sensor adalah 0 (tidak ada data masuk)
     return {
       timestamp: new Date().toLocaleTimeString('id-ID'),
       ti1: 0,
@@ -1412,7 +1416,7 @@ export default function FluidHEDashboard() {
       heater2Active: false,
       mode: operationMode
     };
-  }, [isHardwareOnline, supabaseTelemetry, supabaseControls, tc1Setpoint, operationMode]);
+  }, [isSystemAndHardwareOnline, supabaseTelemetry, supabaseControls, tc1Setpoint, operationMode]);
 
   const dualHeaterState = useMemo(() => {
     const isPrimed = fc1Valve > 0;
@@ -1487,14 +1491,14 @@ export default function FluidHEDashboard() {
   }, [heaterMasterPower, emergencyStopped, fc1Valve, supabaseControls?.control_mode, supabaseControls?.heater_1_status, supabaseControls?.heater_2_status, latestData.ti1, latestData.ti2]);
 
   const deltaPHot = useMemo(() => {
-    if (!isHardwareOnline) return 0;
+    if (!isSystemAndHardwareOnline) return 0;
     return parseFloat((latestData.pi1 - latestData.pi2).toFixed(2));
-  }, [isHardwareOnline, latestData.pi1, latestData.pi2]);
+  }, [isSystemAndHardwareOnline, latestData.pi1, latestData.pi2]);
 
   const deltaPCold = useMemo(() => {
-    if (!isHardwareOnline) return 0;
+    if (!isSystemAndHardwareOnline) return 0;
     return parseFloat((latestData.pi3 - latestData.pi4).toFixed(2));
-  }, [isHardwareOnline, latestData.pi3, latestData.pi4]);
+  }, [isSystemAndHardwareOnline, latestData.pi3, latestData.pi4]);
 
   const currentDeltaP = useMemo(() => {
     return Math.max(Math.abs(deltaPHot), Math.abs(deltaPCold));
@@ -2948,7 +2952,7 @@ export default function FluidHEDashboard() {
         solenoidValves={solenoidValves}
         deltaPHot={deltaPHot}
         onHoverSensor={setActivePidHover}
-        isHardwareOnline={isHardwareOnline}
+        isHardwareOnline={isSystemAndHardwareOnline}
       />
     );
   };
@@ -3339,8 +3343,8 @@ export default function FluidHEDashboard() {
           )}
 
           {isGuestMode && systemState !== 'ACTIVE' && (
-            <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 bg-amber-500/10 text-amber-800 border border-amber-300/80 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap shrink-0 shadow-2xs">
-              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+            <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 bg-sky-50 text-sky-800 border border-sky-300 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap shrink-0 shadow-2xs">
+              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-sky-500 animate-pulse shrink-0" />
               <span>Mode Tamu (Hanya Data)</span>
               <button
                 type="button"
@@ -3663,14 +3667,14 @@ export default function FluidHEDashboard() {
                   fc1Valve={supabaseControls?.servo_angle !== undefined ? supabaseControls.servo_angle : fc1Valve}
                   fc2Valve={supabaseControls?.servo_angle_2 !== undefined ? supabaseControls.servo_angle_2 : fc2Valve}
                   onCardClick={() => setActiveTab('control')}
-                  isHardwareOnline={isHardwareOnline}
+                  isHardwareOnline={isSystemAndHardwareOnline}
                 />
 
                 {/* 2. Real-Time Temperature & Pressure Multi-Line Chart */}
                 <LiveChart
                   telemetryHistory={telemetryHistory}
                   operatorSessionLimit={operatorSessionLimit}
-                  isHardwareOnline={isHardwareOnline}
+                  isHardwareOnline={isSystemAndHardwareOnline}
                 />
 
                 {/* 3. Interactive Digital Twin P&ID Visual Diagram */}
@@ -3686,17 +3690,24 @@ export default function FluidHEDashboard() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 text-[10px] sm:text-xs font-bold rounded-xl flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-sky-500 animate-ping" /> Live Telemetry
-                      </span>
+                      {isSystemAndHardwareOnline ? (
+                        <span className="px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 text-[10px] sm:text-xs font-bold rounded-xl flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-sky-500 animate-ping" /> Live Telemetry
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 bg-rose-50 text-rose-700 border border-rose-200 text-[10px] sm:text-xs font-bold rounded-xl flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-rose-500" /> Mesin Offline
+                        </span>
+                      )}
                     </div>
                   </div>
 
                   <FlowModeSelector
                     variant="dashboard"
                     currentFlowMode={operationMode}
-                    disabled={emergencyStopped}
+                    disabled={emergencyStopped || !isSystemAndHardwareOnline}
                     onSelectMode={(modeCode, friendlyMode) => {
+                      if (!isSystemAndHardwareOnline) return;
                       setOperationMode(friendlyMode);
                       handleFlowModeChange(modeCode);
                       triggerSyncFeedback('Arah Aliran', modeCode === 'CO-CURRENT' ? 'CO-CURRENT' : 'COUNTER-CURRENT');
@@ -3761,12 +3772,12 @@ export default function FluidHEDashboard() {
                       <span className={`w-2 h-2 rounded-full shrink-0 ${syncFeedback.active && syncFeedback.type === 'syncing'
                         ? 'bg-sky-500 animate-ping'
                         : supabaseStatus === 'ONLINE'
-                          ? isHardwareOnline
+                          ? isSystemAndHardwareOnline
                             ? 'bg-emerald-500 animate-pulse'
                             : 'bg-amber-500'
                           : 'bg-red-500'
                         }`} />
-                      <span>Status: <strong>{supabaseStatus === 'ONLINE' ? (isHardwareOnline ? 'ONLINE' : 'STANDBY (OFFLINE)') : supabaseStatus}</strong></span>
+                      <span>Status: <strong>{supabaseStatus === 'ONLINE' ? (isSystemAndHardwareOnline ? 'ONLINE' : 'STANDBY (OFFLINE)') : supabaseStatus}</strong></span>
                     </div>
                   </div>
 
@@ -3803,7 +3814,7 @@ export default function FluidHEDashboard() {
                     supabaseTelemetry={supabaseTelemetry}
                     latestData={latestData}
                     dualHeaterState={dualHeaterState}
-                    isHardwareOnline={isHardwareOnline}
+                    isHardwareOnline={isSystemAndHardwareOnline}
                   />
 
                   {/* 2. Unified Control Command Inputs (Dibekukan & Blur Jika Mesin Tidak Aktif/Offline) */}
@@ -3812,14 +3823,14 @@ export default function FluidHEDashboard() {
                       <h3 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                         <Sliders className="w-4 h-4 text-sky-600" /> Panel Pengaturan & Perintah Kontrol
                       </h3>
-                      {!isHardwareOnline && (
+                      {!isSystemAndHardwareOnline && (
                         <button
                           type="button"
                           onClick={() => setIsControlOfflineModalDismissed(false)}
                           className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 shadow-2xs transition active:scale-95 cursor-pointer"
                           title="Klik untuk melihat informasi pembekuan kontrol"
                         >
-                          <Lock className="w-3 h-3 text-rose-600" /> Kontrol Dibekukan (Mesin Mati)
+                          <Lock className="w-3 h-3 text-rose-600" /> Kontrol Dibekukan ({systemState !== 'ACTIVE' ? 'Sistem Mati' : 'Mesin Offline'})
                         </button>
                       )}
                     </div>
@@ -3828,7 +3839,7 @@ export default function FluidHEDashboard() {
                     <div className="relative">
                       {/* Controls Grid */}
                       <div className={`transition-all duration-300 ${
-                        !isHardwareOnline
+                        !isSystemAndHardwareOnline
                           ? isControlOfflineModalDismissed
                             ? 'opacity-60 grayscale pointer-events-none select-none cursor-not-allowed'
                             : 'opacity-40 grayscale pointer-events-none select-none blur-[2px]'
@@ -3852,11 +3863,12 @@ export default function FluidHEDashboard() {
                               <button
                                 type="button"
                                 onClick={() => {
+                                  if (!isSystemAndHardwareOnline) return;
                                   handleControlModeChange('AUTO');
                                   setOperationMode('Counter-Current');
                                   triggerSyncFeedback('Mode Operasi AUTO', 'Sistem Mengelola Heater & Katup Otomatis');
                                 }}
-                                disabled={emergencyStopped}
+                                disabled={emergencyStopped || !isSystemAndHardwareOnline}
                                 className={`py-2 sm:py-3 px-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-black transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 ${supabaseControls.control_mode === 'AUTO'
                                   ? 'bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 text-white shadow-md shadow-sky-500/20 border border-sky-400/40'
                                   : 'bg-white/70 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/60'
@@ -3869,10 +3881,11 @@ export default function FluidHEDashboard() {
                               <button
                                 type="button"
                                 onClick={() => {
+                                  if (!isSystemAndHardwareOnline) return;
                                   handleControlModeChange('MANUAL');
                                   triggerSyncFeedback('Mode Operasi MANUAL', 'Kendali Bebas Operator Aktif');
                                 }}
-                                disabled={emergencyStopped}
+                                disabled={emergencyStopped || !isSystemAndHardwareOnline}
                                 className={`py-2 sm:py-3 px-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-black transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 ${supabaseControls.control_mode === 'MANUAL'
                                   ? 'bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 text-white shadow-md shadow-sky-500/20 border border-sky-400/40'
                                   : 'bg-white/70 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/60'
@@ -3888,8 +3901,9 @@ export default function FluidHEDashboard() {
                           <FlowModeSelector
                             variant="control"
                             currentFlowMode={supabaseControls.flow_mode}
-                            disabled={emergencyStopped}
+                            disabled={emergencyStopped || !isSystemAndHardwareOnline}
                             onSelectMode={(modeCode, friendlyMode) => {
+                              if (!isSystemAndHardwareOnline) return;
                               setOperationMode(friendlyMode);
                               handleFlowModeChange(modeCode);
                               triggerSyncFeedback('Arah Aliran', modeCode === 'CO-CURRENT' ? 'CO-CURRENT' : 'COUNTER-CURRENT');
@@ -3911,19 +3925,22 @@ export default function FluidHEDashboard() {
                             pressureOffset={supabaseControls.pressure_offset ?? 0.0}
                             heater1Status={supabaseControls.btn_onoff !== undefined ? supabaseControls.btn_onoff : (supabaseControls.heater_1_status ?? false)}
                             heater2Status={supabaseControls.heater_2_status !== undefined ? supabaseControls.heater_2_status : false}
-                            emergencyStopped={emergencyStopped}
+                            emergencyStopped={emergencyStopped || !isSystemAndHardwareOnline}
                             isBtnUpActive={activeMomentaryButtons.btn_up}
                             isBtnDownActive={activeMomentaryButtons.btn_down}
                             isUpdatingControl={isUpdatingControl}
                             onToggleHeater1={async (nextState) => {
+                              if (!isSystemAndHardwareOnline) return;
                               triggerSyncFeedback('Heater 1', nextState ? 'ON' : 'OFF');
                               await handleHeater1PowerToggle(nextState);
                             }}
                             onToggleHeater2={async (nextState) => {
+                              if (!isSystemAndHardwareOnline) return;
                               triggerSyncFeedback('Heater 2 (Booster)', nextState ? 'ON' : 'OFF');
                               await handleHeater2PowerToggle(nextState);
                             }}
                             onAdjustSetPoint={async (delta) => {
+                              if (!isSystemAndHardwareOnline) return;
                               const currentSp = supabaseControls.target_temp_hot ?? supabaseControls.target_temp ?? 50.0;
                               const currentTol = supabaseControls.tolerance_level ?? 1;
                               const newSp = Math.min(90, Math.max(20, currentSp + delta));
@@ -3931,6 +3948,7 @@ export default function FluidHEDashboard() {
                               await handleThermostatSetupChange(newSp, currentTol);
                             }}
                             onAdjustTolerance={async (delta) => {
+                              if (!isSystemAndHardwareOnline) return;
                               const currentSp = supabaseControls.target_temp_hot ?? supabaseControls.target_temp ?? 50.0;
                               const currentTol = supabaseControls.tolerance_level ?? 1;
                               const newTol = Math.min(7, Math.max(1, currentTol + delta));
@@ -3938,16 +3956,19 @@ export default function FluidHEDashboard() {
                               await handleThermostatSetupChange(currentSp, newTol);
                             }}
                             onSaveThermostatSetup={async (sp, tol) => {
+                              if (!isSystemAndHardwareOnline) return;
                               triggerSyncFeedback('Thermostat Setup', `KP: ${sp}°C | P${tol}`);
                               await handleThermostatSetupChange(sp, tol);
                             }}
                             onSaveCalibration={async (flowCal1, flowCal2, tOffset, pOffset) => {
+                              if (!isSystemAndHardwareOnline) return;
                               triggerSyncFeedback('Kalibrasi Sensor', `Flow Dingin: ${flowCal1} | Flow Panas: ${flowCal2} | Temp: ${tOffset}°C | Press: ${pOffset}bar`);
                               await handleSensorCalibrationChange(flowCal1, flowCal2, tOffset, pOffset);
                             }}
                             targetUpper={supabaseControls.target_upper ?? 60}
                             targetLower={supabaseControls.target_lower ?? 45}
                             onSaveThermostatLimits={async (up, low) => {
+                              if (!isSystemAndHardwareOnline) return;
                               triggerSyncFeedback('Thermostat Limit', `H2 OFF: ${up}°C | H2 ON: ${low}°C`);
                               await handleThermostatLimitsChange(up, low);
                             }}
@@ -3959,8 +3980,9 @@ export default function FluidHEDashboard() {
                             <PumpControl
                               controlMode={supabaseControls.control_mode}
                               pompaStatus={supabaseControls.pompa_ekstra ?? false}
-                              emergencyStopped={emergencyStopped}
+                              emergencyStopped={emergencyStopped || !isSystemAndHardwareOnline}
                               onTogglePompa={(nextState) => {
+                                if (!isSystemAndHardwareOnline) return;
                                 handlePompaToggle(nextState);
                                 triggerSyncFeedback('Pompa Sirkulasi', nextState ? 'POMPA NYALA (ON)' : 'POMPA MATI (OFF)');
                               }}
@@ -3973,17 +3995,20 @@ export default function FluidHEDashboard() {
                                 uapStatus={supabaseControls.uap_status ?? false}
                                 uapAutoStatus={supabaseControls.control_mode === 'AUTO' ? true : (supabaseControls.uap_auto_status ?? false)}
                                 uapIntervalMin={supabaseControls.uap_interval_min ?? 5}
-                                emergencyStopped={emergencyStopped}
+                                emergencyStopped={emergencyStopped || !isSystemAndHardwareOnline}
                                 isPressureDangerous={latestData.pi1 >= 2.0 || latestData.pi3 >= 2.0}
                                 onToggleUapManual={(nextVal: boolean) => {
+                                  if (!isSystemAndHardwareOnline) return;
                                   handleUapStatusToggle(nextVal);
                                   triggerSyncFeedback('Katup Uap Manual', nextVal ? 'DIBUKA' : 'DITUTUP');
                                 }}
                                 onToggleUapAuto={(nextVal: boolean) => {
+                                  if (!isSystemAndHardwareOnline) return;
                                   handleUapAutoToggle(nextVal);
                                   triggerSyncFeedback('Katup Uap Otomatis', nextVal ? 'AKTIF' : 'NONAKTIF');
                                 }}
                                 onChangeUapInterval={(min: number) => {
+                                  if (!isSystemAndHardwareOnline) return;
                                   handleUapIntervalChange(min);
                                   triggerSyncFeedback('Interval Katup Uap', `${min} Menit`);
                                 }}
@@ -4028,11 +4053,12 @@ export default function FluidHEDashboard() {
                                     <button
                                       type="button"
                                       onClick={() => {
+                                        if (!isSystemAndHardwareOnline) return;
                                         const nextVal = !supabaseControls.air_dingin;
                                         handleAirDinginToggle(nextVal);
                                         triggerSyncFeedback('Katup Air Dingin', nextVal ? 'DIBUKA' : 'DITUTUP');
                                       }}
-                                      disabled={emergencyStopped}
+                                      disabled={emergencyStopped || !isSystemAndHardwareOnline}
                                       className={`w-full py-2 min-h-[38px] rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-98 ${supabaseControls.air_dingin
                                           ? 'bg-slate-900 text-white hover:bg-slate-800'
                                           : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
@@ -4073,15 +4099,17 @@ export default function FluidHEDashboard() {
                           {/* Pengaturan Katup Aliran (Katup Panas & Katup Dingin: 0, 20, 40, 60, 80, 100%) */}
                           <FlowAndValvesControl
                             controlMode={supabaseControls.control_mode}
-                            emergencyStopped={emergencyStopped || !isHardwareOnline}
+                            emergencyStopped={emergencyStopped || !isSystemAndHardwareOnline}
                             fc1Valve={supabaseControls.servo_angle !== undefined ? supabaseControls.servo_angle : fc1Valve}
                             onChangeFc1Valve={(val) => {
+                              if (!isSystemAndHardwareOnline) return;
                               setFc1Valve(val);
                               handleValve1Change(val);
                               triggerSyncFeedback('Katup FC1 (Air Panas)', `${val}%`);
                             }}
                             fc2Valve={supabaseControls.servo_angle_2 !== undefined ? supabaseControls.servo_angle_2 : fc2Valve}
                             onChangeFc2Valve={(val) => {
+                              if (!isSystemAndHardwareOnline) return;
                               setFc2Valve(val);
                               handleValve2Change(val);
                               triggerSyncFeedback('Katup FC2 (Air Dingin)', `${val}%`);
@@ -4093,7 +4121,7 @@ export default function FluidHEDashboard() {
                     </div>
 
                     {/* OVERLAY NOTICE: KETIKA MESIN OFFLINE / MATI (Dapat Ditutup dengan Tombol X) */}
-                    {!isHardwareOnline && !isControlOfflineModalDismissed && (
+                    {!isSystemAndHardwareOnline && !isControlOfflineModalDismissed && (
                       <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-900/40 backdrop-blur-xs">
                         <div className="max-w-md w-full bg-white/95 rounded-2xl p-5 sm:p-6 shadow-2xl border border-rose-200 text-center space-y-3 animate-in zoom-in-95 duration-200 relative">
                           {/* Tombol X untuk Menutup Peringatan & Menghilangkan Blur */}
@@ -4114,15 +4142,17 @@ export default function FluidHEDashboard() {
                               Kontrol Panel Dibekukan
                             </h4>
                             <p className="text-xs text-rose-700 font-bold mt-0.5">
-                              Mesin Tidak Aktif (Hardware Offline)
+                              {systemState !== 'ACTIVE' ? 'Sistem Mati (Sistem Sedang OFF)' : 'Mesin Tidak Aktif (Hardware Offline)'}
                             </p>
                           </div>
                           <p className="text-[11px] sm:text-xs text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                            Semua tombol kendali pemanas, katup, dan pengaturan thermostat dikunci demi keselamatan sampai mesin menyala dan terhubung ke sistem.
+                            {systemState !== 'ACTIVE'
+                              ? 'Sistem Heat Exchanger sedang dimatikan (OFF). Silakan hidupkan sistem praktikum terlebih dahulu melalui tombol Nyalakan Sistem di bilah atas untuk mengaktifkan kendali dan menghindari trip listrik (jetrek).'
+                              : 'Semua tombol kendali pemanas, katup, dan pengaturan thermostat dikunci demi keselamatan sampai mesin menyala dan terhubung ke sistem.'}
                           </p>
                           <div className="flex items-center justify-center gap-1.5 text-[10.5px] font-bold text-slate-500">
                             <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                            <span>Menunggu koneksi hardware mesin...</span>
+                            <span>{systemState !== 'ACTIVE' ? 'Sistem dalam status OFF / Terkunci' : 'Menunggu koneksi hardware mesin...'}</span>
                           </div>
                         </div>
                       </div>
