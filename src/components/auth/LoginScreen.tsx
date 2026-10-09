@@ -328,7 +328,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     className="text-xs font-semibold text-slate-500 hover:text-sky-600 transition-colors cursor-pointer py-1 px-2 inline-flex items-center gap-1.5 rounded hover:bg-slate-50"
                   >
                     Masuk sebagai Tamu
-                    <span className="text-[10px] font-normal text-slate-400">(Hanya Pantau Data)</span>
                   </button>
                 </div>
               </div>

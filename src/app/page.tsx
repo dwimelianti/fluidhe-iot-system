@@ -2440,22 +2440,24 @@ export default function FluidHEDashboard() {
   };
 
   // ─── LOGIN HANDLER (WITH STRICT GATEKEEPING & PASSWORD VALIDATION) ───
-  const handleLogin = async (e?: React.SyntheticEvent) => {
+  const handleLogin = async (e?: React.SyntheticEvent, isAsGuest: boolean = false) => {
     if (e) e.preventDefault();
     setLoginError(null);
 
     // Pertahankan status sesi jika pengguna memiliki sesi aktif yang sedang berjalan
     const existingSession = typeof window !== 'undefined' ? localStorage.getItem('fluidhe_current_session') : null;
     const existingState = typeof window !== 'undefined' ? localStorage.getItem('fluidhe_system_state') : null;
-    if (!existingSession || existingState !== 'ACTIVE') {
+    if (!existingSession || existingState !== 'ACTIVE' || isAsGuest) {
       setSystemState('OFF');
-      setIsGuestMode(false);
-      setCurrentSession(null);
-      setSessionDuration(0);
-      try {
-        localStorage.setItem('fluidhe_system_state', 'OFF');
-        localStorage.removeItem('fluidhe_current_session');
-      } catch (e) { }
+      setIsGuestMode(isAsGuest);
+      if (isAsGuest) {
+        setCurrentSession(null);
+        setSessionDuration(0);
+        try {
+          localStorage.setItem('fluidhe_system_state', 'OFF');
+          localStorage.removeItem('fluidhe_current_session');
+        } catch (e) { }
+      }
     }
 
     const inputEmail = loginEmail.toLowerCase().trim();
@@ -2486,11 +2488,12 @@ export default function FluidHEDashboard() {
       } catch (e) { }
 
       const userObj = {
-        name: displayName,
+        name: isAsGuest ? `${displayName} (Tamu)` : displayName,
         email: targetEmail,
         role: 'admin' as UserRole
       };
       setCurrentUser(userObj);
+      setIsGuestMode(isAsGuest);
       setIsLoggedIn(true);
       setActiveTab('dashboard');
       try {
@@ -2498,6 +2501,9 @@ export default function FluidHEDashboard() {
         sessionStorage.setItem('fluidhe_is_logged_in', 'true');
         localStorage.setItem('fluidhe_active_tab', 'dashboard');
       } catch (e) { }
+      if (isAsGuest) {
+        triggerSyncFeedback('Mode Tamu Aktif', 'Anda masuk dalam mode pemantauan data. Mesin & pemanas tetap non-aktif.');
+      }
       return;
     }
 
@@ -2527,12 +2533,15 @@ export default function FluidHEDashboard() {
       }
 
       const userObj = {
-        name: displayName,
+        name: isAsGuest ? `${displayName} (Tamu)` : displayName,
         email: targetEmail,
         role: 'operator' as UserRole
       };
       setCurrentUser(userObj);
-      setOperatorSessionRemaining(operatorSessionLimit * 60);
+      setIsGuestMode(isAsGuest);
+      if (!isAsGuest) {
+        setOperatorSessionRemaining(operatorSessionLimit * 60);
+      }
       setIsLoggedIn(true);
       setActiveTab('dashboard');
       try {
@@ -2540,6 +2549,9 @@ export default function FluidHEDashboard() {
         sessionStorage.setItem('fluidhe_is_logged_in', 'true');
         localStorage.setItem('fluidhe_active_tab', 'dashboard');
       } catch (e) { }
+      if (isAsGuest) {
+        triggerSyncFeedback('Mode Tamu Aktif', 'Anda masuk dalam mode pemantauan data. Mesin & pemanas tetap non-aktif.');
+      }
       return;
     }
 
@@ -2650,30 +2662,33 @@ export default function FluidHEDashboard() {
     let loggedInUser: { name: string; email: string; role: UserRole };
     if (found) {
       loggedInUser = {
-        name: found.name,
+        name: isAsGuest ? `${found.name} (Tamu)` : found.name,
         email: found.email,
         role: found.role
       };
       setCurrentUser(loggedInUser);
-      if (found.role === 'operator') {
+      if (found.role === 'operator' && !isAsGuest) {
         setOperatorSessionRemaining(operatorSessionLimit * 60);
       }
     } else if (actualRole === 'admin') {
       loggedInUser = {
-        name: 'Admin Lab (Anugrah)',
+        name: isAsGuest ? 'Admin Lab (Tamu)' : 'Admin Lab (Anugrah)',
         email: targetEmail,
         role: 'admin'
       };
       setCurrentUser(loggedInUser);
     } else {
       loggedInUser = {
-        name: 'Operator Lab',
+        name: isAsGuest ? 'Operator Lab (Tamu)' : 'Operator Lab',
         email: targetEmail,
         role: 'operator'
       };
       setCurrentUser(loggedInUser);
-      setOperatorSessionRemaining(operatorSessionLimit * 60);
+      if (!isAsGuest) {
+        setOperatorSessionRemaining(operatorSessionLimit * 60);
+      }
     }
+    setIsGuestMode(isAsGuest);
     setIsLoggedIn(true);
     setActiveTab('dashboard');
     try {
@@ -2681,25 +2696,14 @@ export default function FluidHEDashboard() {
       sessionStorage.setItem('fluidhe_is_logged_in', 'true');
       localStorage.setItem('fluidhe_active_tab', 'dashboard');
     } catch (e) { }
+
+    if (isAsGuest) {
+      triggerSyncFeedback('Mode Tamu Aktif', 'Anda masuk dalam mode pemantauan data. Mesin & pemanas tetap non-aktif.');
+    }
   };
 
-  const handleGuestLogin = () => {
-    const guestUser = {
-      name: 'Tamu Laboratorium',
-      email: 'guest@uad.ac.id',
-      role: 'operator' as UserRole
-    };
-    setCurrentUser(guestUser);
-    setIsGuestMode(true);
-    setSystemState('OFF');
-    setIsLoggedIn(true);
-    setActiveTab('dashboard');
-    try {
-      sessionStorage.setItem('fluidhe_auth_user', JSON.stringify(guestUser));
-      sessionStorage.setItem('fluidhe_is_logged_in', 'true');
-      localStorage.setItem('fluidhe_active_tab', 'dashboard');
-    } catch (e) { }
-    triggerSyncFeedback('Mode Tamu Aktif', 'Anda masuk dalam mode pemantauan data. Mesin & pemanas tetap non-aktif (aman).');
+  const handleGuestLogin = (e?: React.SyntheticEvent) => {
+    handleLogin(e, true);
   };
 
   const handleLogout = () => {
