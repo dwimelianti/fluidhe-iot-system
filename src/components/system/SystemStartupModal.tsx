@@ -21,6 +21,7 @@ export interface SystemStartupModalProps {
   onConfirmStartup: (sessionTitle: string) => void;
   operatorName: string;
   defaultFlowMode?: string;
+  currentSessionTitle?: string;
 }
 
 interface StepItem {
@@ -33,26 +34,26 @@ interface StepItem {
 const STEPS: StepItem[] = [
   {
     id: 1,
-    label: 'Koneksi Cloud & Alat Laboratorium',
-    detail: 'Memverifikasi jalur komunikasi data real-time dengan alat laboratorium.',
+    label: 'Koneksi Cloud & ESP32 Laboratorium',
+    detail: 'Mengirim sinyal daya dan membuka jalur komunikasi IoT real-time.',
     icon: Server
   },
   {
     id: 2,
-    label: 'Kalibrasi Nol & Verifikasi Sensor',
-    detail: 'Memeriksa keandalan 4 termostat suhu (TI1-TI4) & 4 sensor tekanan.',
+    label: 'Inisialisasi Termokopel & Sensor Tekanan',
+    detail: 'Verifikasi pembacaan 4 termostat suhu (TI1-TI4) & transmitter tekanan (PI1-PI4).',
     icon: Thermometer
   },
   {
     id: 3,
-    label: 'Pemeriksaan Jalur Fluida & Safety Check',
-    detail: 'Memastikan katup uap & solenoid air dingin dalam parameter aman.',
+    label: 'Safety Check Katup & Solenoid Fluida',
+    detail: 'Memastikan katup uap SV & solenoid air dingin siap dalam konfigurasi aman.',
     icon: ShieldCheck
   },
   {
     id: 4,
-    label: 'Alokasi Sesi Baru (Anti-Tercampur Data)',
-    detail: 'Menyiapkan wadah penyimpanan data khusus agar rekaman hari ini terisolasi.',
+    label: 'Sinkronisasi Kontrol Mesin & Pemanas',
+    detail: 'Mengaktifkan master switch pemanas dan sinkronisasi telemetry Supabase.',
     icon: FileSpreadsheet
   }
 ];
@@ -62,7 +63,8 @@ export const SystemStartupModal: React.FC<SystemStartupModalProps> = ({
   onClose,
   onConfirmStartup,
   operatorName,
-  defaultFlowMode = 'Counter-Current'
+  defaultFlowMode = 'Counter-Current',
+  currentSessionTitle
 }) => {
   const [sessionTitle, setSessionTitle] = useState<string>('');
   const [isStarting, setIsStarting] = useState<boolean>(false);
@@ -75,17 +77,22 @@ export const SystemStartupModal: React.FC<SystemStartupModalProps> = ({
     if (isOpen) {
       const now = new Date();
       const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-      setSessionTitle(`Praktikum ${defaultFlowMode} - ${timeStr} WIB`);
+      setSessionTitle(currentSessionTitle || `Praktikum ${defaultFlowMode} - ${timeStr} WIB`);
+      setIsStarting(false);
+      setProgress(0);
+      setCurrentStepIndex(0);
+      setIsReady(false);
+    } else {
       setIsStarting(false);
       setProgress(0);
       setCurrentStepIndex(0);
       setIsReady(false);
     }
-  }, [isOpen, defaultFlowMode]);
+  }, [isOpen, defaultFlowMode, currentSessionTitle]);
 
-  // Handle simulated progress sequence when user clicks "Mulai Inisialisasi"
+  // Handle simulated progress sequence only when modal is open and user clicked "Mulai"
   useEffect(() => {
-    if (!isStarting || isReady) return;
+    if (!isOpen || !isStarting || isReady) return;
 
     const intervalTime = 30; // ms
     const totalDuration = 2800; // ms
@@ -117,7 +124,7 @@ export const SystemStartupModal: React.FC<SystemStartupModalProps> = ({
     }, intervalTime);
 
     return () => clearInterval(timer);
-  }, [isStarting, isReady, sessionTitle, defaultFlowMode, onConfirmStartup]);
+  }, [isOpen, isStarting, isReady, sessionTitle, defaultFlowMode, onConfirmStartup]);
 
   if (!isOpen) return null;
 

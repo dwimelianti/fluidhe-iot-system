@@ -17,7 +17,8 @@ function readSessionsDatabase(): { sessions: SystemSession[] } {
       return initial;
     }
     const raw = fs.readFileSync(SESSIONS_FILE, 'utf-8');
-    const parsed = JSON.parse(raw);
+    const cleanRaw = raw.replace(/^\uFEFF/, '').trim();
+    const parsed = JSON.parse(cleanRaw);
     if (!parsed || !Array.isArray(parsed.sessions)) {
       return { sessions: [] };
     }
@@ -80,9 +81,12 @@ export async function GET(req: NextRequest) {
       return s;
     });
 
+    // Filter HANYA sesi yang benar-benar memiliki data pengukuran masuk (alat aktif)
+    const validSessions = allSessions.filter((s) => (s.pointsCount && s.pointsCount > 0) || (s.data && s.data.length > 0));
+
     if (role === 'admin') {
       // ADMIN: Akses penuh ke seluruh data dari semua kelas & tanggal
-      let filtered = [...allSessions];
+      let filtered = [...validSessions];
 
       if (sessionId) {
         filtered = filtered.filter((s) => s.id === sessionId);
@@ -97,7 +101,7 @@ export async function GET(req: NextRequest) {
 
       // Bangun daftar agregat kelas untuk opsi filter Admin
       const classMap = new Map<string, { operatorEmail: string; operatorName: string; classGroup?: string; count: number }>();
-      allSessions.forEach((s) => {
+      validSessions.forEach((s) => {
         const emailKey = s.operatorEmail?.toLowerCase().trim();
         const currentName = (emailKey && userMap.has(emailKey)) ? userMap.get(emailKey)! : s.operatorName;
         const key = emailKey || currentName.toLowerCase();
@@ -115,13 +119,13 @@ export async function GET(req: NextRequest) {
         }
       });
 
-      const totalDataPoints = allSessions.reduce((acc, s) => acc + (s.pointsCount || (s.data ? s.data.length : 0)), 0);
+      const totalDataPoints = validSessions.reduce((acc, s) => acc + (s.pointsCount || (s.data ? s.data.length : 0)), 0);
 
       return NextResponse.json({
         success: true,
         isAdmin: true,
         sessions: filtered,
-        totalSessions: allSessions.length,
+        totalSessions: validSessions.length,
         filteredCount: filtered.length,
         totalDataPoints,
         classesList: Array.from(classMap.values())
@@ -138,7 +142,7 @@ export async function GET(req: NextRequest) {
         });
       }
 
-      let operatorSessions = allSessions.filter(
+      let operatorSessions = validSessions.filter(
         (s) => s.operatorEmail && s.operatorEmail.toLowerCase() === email
       );
 
@@ -173,6 +177,18 @@ export async function POST(req: NextRequest) {
         { success: false, error: 'Data sesi tidak valid atau ID sesi kosong' },
         { status: 400 }
       );
+    }
+
+    const points = session.pointsCount || (session.data ? session.data.length : 0);
+
+    // KETENTUAN KHUSUS: Jika sistem OFF dan belum memperoleh data (0 baris),
+    // jangan masukkan ke dalam fitur Data Praktikum.
+    if (points === 0) {
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        message: 'Sesi kosong tanpa data masuk tidak diarsipkan ke Data Praktikum'
+      });
     }
 
     const db = readSessionsDatabase();

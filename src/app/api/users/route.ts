@@ -109,7 +109,7 @@ async function fetchSupabaseUserSync(): Promise<any[]> {
         try {
           const payload = JSON.parse(r.warning_status.slice('USER_SYNC:'.length));
           payloads.push(payload);
-        } catch (e) {}
+        } catch (e) { }
       }
     }
     return payloads;

@@ -1,15 +1,15 @@
 {
   "users": [
     {
-      "id": "USR-01",
-      "name": "Admin Satu",
-      "email": "anugrahtriplecycle@gmail.com",
+      "id": "USR-08",
+      "name": "Firda",
+      "email": "firda.chusna@uad.ac.id",
       "role": "admin",
       "status": "Active",
-      "lastLogin": "2026-10-09T00:31:08.140Z",
+      "lastLogin": "Belum Pernah",
       "isScheduleRestricted": false,
-      "allowedStartDate": "2026-08-26",
-      "allowedEndDate": "2026-08-31",
+      "allowedStartDate": "2026-10-09",
+      "allowedEndDate": "2026-10-09",
       "allowedDays": [
         "Senin",
         "Selasa",
@@ -19,22 +19,52 @@
       ],
       "allowedStartTime": "07:00",
       "allowedEndTime": "18:00",
-      "lastSeen": 1791509864655
-    },
-    {
-      "id": "USR-06",
-      "name": "Admin A",
-      "email": "admin.a@uad.ac.id",
-      "role": "admin",
-      "status": "Active",
-      "lastLogin": "2026-09-17T09:03:50.183Z",
-      "isScheduleRestricted": false,
       "lastSeen": 0
     },
     {
-      "id": "USR-07",
-      "name": "Operator",
-      "email": "dwimeliantiistiqomah55@gmail.com",
+      "id": "USR-09",
+      "name": "Tamrin",
+      "email": "m.tamrin@staff.uad.ac.id",
+      "role": "admin",
+      "status": "Active",
+      "lastLogin": "Belum Pernah",
+      "isScheduleRestricted": false,
+      "allowedStartDate": "2026-10-09",
+      "allowedEndDate": "2026-10-09",
+      "allowedDays": [
+        "Senin",
+        "Selasa",
+        "Rabu",
+        "Kamis",
+        "Jumat"
+      ],
+      "allowedStartTime": "07:00",
+      "allowedEndTime": "18:00"
+    },
+    {
+      "id": "USR-10",
+      "name": "Dhias",
+      "email": "dhias.hakika@uad.ac.id",
+      "role": "admin",
+      "status": "Active",
+      "lastLogin": "Belum Pernah",
+      "isScheduleRestricted": false,
+      "allowedStartDate": "2026-10-09",
+      "allowedEndDate": "2026-10-09",
+      "allowedDays": [
+        "Senin",
+        "Selasa",
+        "Rabu",
+        "Kamis",
+        "Jumat"
+      ],
+      "allowedStartTime": "07:00",
+      "allowedEndTime": "18:00"
+    },
+    {
+      "id": "USR-12",
+      "name": "Hutri",
+      "email": "2407054004@webmail.uad.ac.id",
       "role": "operator",
       "status": "Active",
       "lastLogin": "Belum Pernah",
@@ -49,16 +79,23 @@
         "Jumat"
       ],
       "allowedStartTime": "07:00",
-      "allowedEndTime": "18:00"
+      "allowedEndTime": "18:00",
+      "lastSeen": 0
     }
   ],
   "passwords": {
     "admin@uad.ac.id": "admin123",
-    "anugrahtriplecycle@gmail.com": "gsxjGzxe",
-    "admin.a@uad.ac.id": "1234.Admin",
-    "Admin A": "1234.Admin",
-    "dwimeliantiistiqomah55@gmail.com": "ABeegLdd",
-    "Operator": "ABeegLdd",
-    "operator": "ABeegLdd"
+    "firda.chusna@uad.ac.id": "Jf2RnCs5",
+    "Firda": "Jf2RnCs5",
+    "firda": "Jf2RnCs5",
+    "m.tamrin@staff.uad.ac.id": "k984BX9U",
+    "Tamrin": "k984BX9U",
+    "tamrin": "k984BX9U",
+    "dhias.hakika@uad.ac.id": "yfVRCkZz",
+    "Dhias": "yfVRCkZz",
+    "dhias": "yfVRCkZz",
+    "2407054004@webmail.uad.ac.id": "MUdbFXsS",
+    "Hutri": "MUdbFXsS",
+    "hutri": "MUdbFXsS"
   }
 }

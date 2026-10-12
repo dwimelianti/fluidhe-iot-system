@@ -20,6 +20,7 @@ export interface LogoutConfirmModalProps {
   onConfirmLogoutOnly: () => void;
   onConfirmShutdownAndLogout: () => void | Promise<void>;
   systemState: SystemOperationalStatus;
+  isHardwareOnline?: boolean;
   currentSession: SystemSession | null;
   sessionDuration: number;
   userName?: string;
@@ -43,6 +44,7 @@ export const LogoutConfirmModal: React.FC<LogoutConfirmModalProps> = ({
   onConfirmLogoutOnly,
   onConfirmShutdownAndLogout,
   systemState,
+  isHardwareOnline = false,
   currentSession,
   sessionDuration,
   userName = 'Pengguna',
@@ -51,7 +53,8 @@ export const LogoutConfirmModal: React.FC<LogoutConfirmModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const isSystemActive = systemState === 'ACTIVE' || systemState === 'STOPPING';
+  // Sistem fisik HANYA dianggap aktif jika hardware online dan mesin memang dihidupkan
+  const isSystemActive = Boolean(isHardwareOnline) && (systemState === 'ACTIVE' || systemState === 'STOPPING');
   const dataPointsCount = currentSession?.data?.length || 0;
 
   return (

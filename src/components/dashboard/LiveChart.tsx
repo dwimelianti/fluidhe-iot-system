@@ -8,6 +8,7 @@ interface LiveChartProps {
   telemetryHistory: TelemetryPoint[];
   operatorSessionLimit?: number;
   isHardwareOnline?: boolean;
+  onStartMachine?: () => void;
 }
 
 type ChannelKey = 'all' | 'ti1' | 'ti2' | 'ti3' | 'ti4';
@@ -105,7 +106,8 @@ function getAreaPath(points: { x: number; y: number }[], baselineY: number, minX
 export const LiveChart: React.FC<LiveChartProps> = ({
   telemetryHistory,
   operatorSessionLimit = 60,
-  isHardwareOnline = false
+  isHardwareOnline = false,
+  onStartMachine
 }) => {
   const [activeChannel, setActiveChannel] = useState<ChannelKey>('all');
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);

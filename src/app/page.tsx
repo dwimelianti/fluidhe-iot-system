@@ -370,6 +370,12 @@ export default function FluidHEDashboard() {
   const [isLoggingOutWithShutdown, setIsLoggingOutWithShutdown] = useState<boolean>(false);
   const [selectedLogsSessionId, setSelectedLogsSessionId] = useState<string>('CURRENT');
   const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
+  const [isAppSessionStarted, setIsAppSessionStarted] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('fluidhe_app_session_started') === 'true';
+    }
+    return false;
+  });
 
   // Role-based Master Classes Filtering (Admin can view all classes or filter per class)
   const [classFilter, setClassFilter] = useState<string>('ALL');
@@ -446,7 +452,7 @@ export default function FluidHEDashboard() {
       const savedState = localStorage.getItem('fluidhe_system_state') as SystemOperationalStatus | null;
       const savedSessionRaw = localStorage.getItem('fluidhe_current_session');
 
-      if (savedState === 'ACTIVE' && savedSessionRaw) {
+      if (savedSessionRaw) {
         try {
           const parsedSession: SystemSession = JSON.parse(savedSessionRaw);
           const todayStr = new Date().toISOString().slice(0, 10);
@@ -463,7 +469,15 @@ export default function FluidHEDashboard() {
               parsedSession.pointsCount = parsedSession.data.length;
             }
             setCurrentSession(parsedSession);
-            setSystemState('ACTIVE');
+
+            // Status mesin IoT terpisah dari durasi web: Hanya AKTIF jika operator secara sadar mengklik Hidupkan Mesin
+            const isMachineActiveInSession = sessionStorage.getItem('fluidhe_machine_active') === 'true';
+            if (!isMachineActiveInSession) {
+              try {
+                localStorage.setItem('fluidhe_system_state', 'OFF');
+              } catch (e) { }
+            }
+            setSystemState(isMachineActiveInSession ? 'ACTIVE' : 'OFF');
 
             // Hitung durasi akumulatif yang akurat berdasarkan waktu mulai sesi
             if (parsedSession.startTimeMs) {
@@ -547,10 +561,10 @@ export default function FluidHEDashboard() {
     }
   }, [soundEnabled, isMounted]);
 
-  // ─── LIVE SESSION DURATION TICKER ───
+  // ─── LIVE SESSION DURATION TICKER (BERJALAN SEJAK USER LOGIN / SESI AKTIF) ───
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
-    if (systemState === 'ACTIVE' && currentSession) {
+    if (isLoggedIn && (currentSession || isAppSessionStarted || systemState === 'ACTIVE')) {
       timer = setInterval(() => {
         setSessionDuration((prev) => prev + 1);
       }, 1000);
@@ -558,62 +572,15 @@ export default function FluidHEDashboard() {
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [systemState, currentSession]);
+  }, [isLoggedIn, systemState, currentSession, isAppSessionStarted]);
 
   // ─── HARDWARE / IOT SUPABASE SYSTEM STATE SYNCHRONIZATION ───
   useEffect(() => {
     if (!supabaseControls) return;
     const mode = supabaseControls.control_mode;
-    const isActuatorActive = Boolean(
-      supabaseControls.heater_status ||
-      supabaseControls.heater_1_status ||
-      supabaseControls.heater_2_status ||
-      supabaseControls.btn_onoff
-    );
-    // Sistem IoT hardware dianggap aktif jika mode AUTO/MANUAL/KALIBRASI atau ada aktuator heater ON
-    const isIotActive = (mode === 'AUTO' || mode === 'MANUAL' || mode === 'KALIBRASI') || isActuatorActive;
 
-    if (isIotActive) {
-      if (systemState !== 'ACTIVE') {
-        setSystemState('ACTIVE');
-        try {
-          localStorage.setItem('fluidhe_system_state', 'ACTIVE');
-        } catch (e) { }
-
-        // Buat atau pulihkan wadah sesi jika belum ada
-        setCurrentSession((prev) => {
-          if (prev) return prev;
-          const now = new Date();
-          const dateStr = now.toISOString().slice(0, 10);
-          const timeStr = now.toLocaleTimeString('id-ID');
-          const timeCompact = now.toTimeString().slice(0, 8).replace(/:/g, '');
-          const flow = supabaseControls.flow_mode === 'CO-CURRENT' ? 'Co-Current' : 'Counter-Current';
-          const autoSession: SystemSession = {
-            id: `SES-${dateStr.replace(/-/g, '')}-${timeCompact}`,
-            title: `Praktikum ${flow} (${mode || 'AUTO'})`,
-            date: dateStr,
-            startTime: timeStr,
-            startTimeMs: Date.now(),
-            operatorName: currentUser?.name || 'Operator',
-            operatorEmail: currentUser?.email,
-            operatorRole: currentUser?.role,
-            classGroup: currentUser?.name,
-            pointsCount: 0,
-            flowMode: flow,
-            data: []
-          };
-          try {
-            localStorage.setItem('fluidhe_current_session', JSON.stringify(autoSession));
-            fetch('/api/sessions', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ session: autoSession })
-            }).catch(() => { });
-          } catch (e) { }
-          return autoSession;
-        });
-      }
-    } else if (mode === 'SHUTDOWN' || mode === 'STANDBY') {
+    // Sinkronkan pemadaman jika hardware mengirim sinyal SHUTDOWN atau STANDBY
+    if (mode === 'SHUTDOWN' || mode === 'STANDBY') {
       if (systemState === 'ACTIVE' || systemState === 'STOPPING') {
         setSystemState('OFF');
         try {
@@ -623,26 +590,22 @@ export default function FluidHEDashboard() {
     }
   }, [
     supabaseControls?.control_mode,
-    supabaseControls?.heater_status,
-    supabaseControls?.heater_1_status,
-    supabaseControls?.heater_2_status,
-    supabaseControls?.btn_onoff,
-    supabaseControls?.flow_mode,
-    systemState,
-    currentUser
+    systemState
   ]);
 
-  // ─── CONFIRM SYSTEM STARTUP (INITIALIZE SESSION & HARDWARE) ───
-  const handleConfirmStartup = async (sessionTitle: string, mode: ControlMode = 'AUTO') => {
+  // ─── START APP MONITORING SESSION (TANPA MENYALAKAN ALAT FISIK LANGSUNG) ───
+  const handleStartAppSession = async (sessionTitle?: string) => {
     const now = new Date();
     const dateStr = now.toISOString().slice(0, 10);
     const timeStr = now.toLocaleTimeString('id-ID');
     const timeCompact = now.toTimeString().slice(0, 8).replace(/:/g, '');
     const newSessionId = `SES-${dateStr.replace(/-/g, '')}-${timeCompact}`;
 
+    const title = sessionTitle?.trim() || `Praktikum ${operationMode} - ${now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB`;
+
     const newSession: SystemSession = {
       id: newSessionId,
-      title: sessionTitle || `Praktikum ${operationMode}`,
+      title: title,
       date: dateStr,
       startTime: timeStr,
       startTimeMs: Date.now(),
@@ -655,21 +618,57 @@ export default function FluidHEDashboard() {
       data: []
     };
 
+    // Mesin fisik dalam kondisi OFF sampai operator secara eksplisit mengklik 'Hidupkan Mesin'
+    setSystemState('OFF');
+    setCurrentSession(newSession);
+    setIsAppSessionStarted(true);
+    setSelectedLogsSessionId('CURRENT');
+
+    try {
+      localStorage.setItem('fluidhe_app_session_started', 'true');
+      localStorage.setItem('fluidhe_system_state', 'OFF');
+      localStorage.setItem('fluidhe_current_session', JSON.stringify(newSession));
+    } catch (e) { }
+
+    triggerSyncFeedback('Sesi Monitoring Dibuka', title);
+  };
+
+  // ─── CONFIRM SYSTEM STARTUP (INITIALIZE HARDWARE & ACTIVATE MACHINE) ───
+  const handleConfirmStartup = async (sessionTitle: string, mode: ControlMode = 'AUTO') => {
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const timeStr = now.toLocaleTimeString('id-ID');
+    const timeCompact = now.toTimeString().slice(0, 8).replace(/:/g, '');
+    const newSessionId = currentSession?.id || `SES-${dateStr.replace(/-/g, '')}-${timeCompact}`;
+
+    const newSession: SystemSession = {
+      id: newSessionId,
+      title: sessionTitle || currentSession?.title || `Praktikum ${operationMode}`,
+      date: currentSession?.date || dateStr,
+      startTime: currentSession?.startTime || timeStr,
+      startTimeMs: currentSession?.startTimeMs || Date.now(),
+      operatorName: currentUser?.name || 'Operator',
+      operatorEmail: currentUser?.email,
+      operatorRole: currentUser?.role,
+      classGroup: currentUser?.name,
+      pointsCount: currentSession?.pointsCount || 0,
+      flowMode: operationMode,
+      data: currentSession?.data || []
+    };
+
     setCurrentSession(newSession);
     setSystemState('ACTIVE');
+    setIsAppSessionStarted(true);
     setIsGuestMode(false);
     setSessionDuration(0);
     setSelectedLogsSessionId('CURRENT');
     setIsStartupModalOpen(false);
 
     try {
+      sessionStorage.setItem('fluidhe_machine_active', 'true');
       localStorage.setItem('fluidhe_system_state', 'ACTIVE');
+      localStorage.setItem('fluidhe_app_session_started', 'true');
       localStorage.setItem('fluidhe_current_session', JSON.stringify(newSession));
-      await fetch('/api/sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session: newSession })
-      });
     } catch (e) { }
 
     // Kirim perintah aktifasi serentak ke database & ESP32
@@ -700,13 +699,19 @@ export default function FluidHEDashboard() {
       }
       : null;
 
-    if (finalSession) {
+    const hasRealData = Boolean(
+      finalSession &&
+      ((finalSession.pointsCount && finalSession.pointsCount > 0) ||
+        (finalSession.data && finalSession.data.length > 0))
+    );
+
+    if (finalSession && hasRealData) {
       setArchivedSessions((prev) => {
         const updated = [finalSession, ...prev.filter((s) => s.id !== finalSession.id)];
         return updated;
       });
 
-      // Simpan permanen ke server backend master (data/sessions.json)
+      // Simpan permanen ke server backend master (data/sessions.json) HANYA jika memperoleh data (alat aktif)
       try {
         await fetch('/api/sessions', {
           method: 'POST',
@@ -721,9 +726,8 @@ export default function FluidHEDashboard() {
       }
     }
 
-    setCurrentSession(null);
-    setSessionDuration(0);
     try {
+      sessionStorage.removeItem('fluidhe_machine_active');
       localStorage.setItem('fluidhe_system_state', 'OFF');
       localStorage.removeItem('fluidhe_current_session');
     } catch (e) { }
@@ -1776,7 +1780,8 @@ export default function FluidHEDashboard() {
   useEffect(() => {
     if (!currentSession || !currentSession.id || systemState !== 'ACTIVE') return;
     const count = currentSession.data ? currentSession.data.length : 0;
-    if (count === lastAutoSyncedCountRef.current) return;
+    // HANYA auto-sync jika alat aktif dan memperoleh data sensor (count > 0)
+    if (count === 0 || count === lastAutoSyncedCountRef.current) return;
 
     const timer = setTimeout(async () => {
       try {
@@ -1806,6 +1811,8 @@ export default function FluidHEDashboard() {
     const interval = setInterval(async () => {
       try {
         const count = currentSession.data ? currentSession.data.length : 0;
+        // HANYA auto-sync berkala jika terdapat data telemetry riil
+        if (count === 0) return;
         await fetch('/api/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2717,10 +2724,41 @@ export default function FluidHEDashboard() {
     setIsGuestMode(isAsGuest);
     setIsLoggedIn(true);
     setActiveTab('dashboard');
+
+    // Buat sesi monitoring awal saat login, mulai durasi aktif, dan pastikan status mesin awalnya OFF
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const timeStr = now.toLocaleTimeString('id-ID');
+    const timeCompact = now.toTimeString().slice(0, 8).replace(/:/g, '');
+    const userSession: SystemSession = {
+      id: `SES-${dateStr.replace(/-/g, '')}-${timeCompact}`,
+      title: `Praktikum ${operationMode}`,
+      date: dateStr,
+      startTime: timeStr,
+      startTimeMs: Date.now(),
+      operatorName: loggedInUser.name,
+      operatorEmail: loggedInUser.email,
+      operatorRole: loggedInUser.role,
+      classGroup: loggedInUser.name,
+      pointsCount: 0,
+      flowMode: operationMode,
+      data: []
+    };
+    setCurrentSession(userSession);
+    setSessionDuration(0);
+    setIsAppSessionStarted(true);
+    setSystemState('OFF');
+    setSelectedLogsSessionId('CURRENT');
+
     try {
       sessionStorage.setItem('fluidhe_auth_user', JSON.stringify(loggedInUser));
       sessionStorage.setItem('fluidhe_is_logged_in', 'true');
       localStorage.setItem('fluidhe_active_tab', 'dashboard');
+      localStorage.setItem('fluidhe_system_state', 'OFF');
+      localStorage.setItem('fluidhe_app_session_started', 'true');
+      localStorage.setItem('fluidhe_current_session', JSON.stringify(userSession));
+      // CATATAN: Sesi awal (0 data points / alat off) sengaja TIDAK diposting ke server master.
+      // Sesi baru akan dikirimkan ke server HANYA saat alat aktif dan memperoleh data pengukuran.
     } catch (e) { }
 
     if (isAsGuest) {
@@ -2745,16 +2783,19 @@ export default function FluidHEDashboard() {
     setIsLoggedIn(false);
     setSystemState('OFF');
     setIsGuestMode(false);
+    setIsAppSessionStarted(false);
     setCurrentSession(null);
     setSessionDuration(0);
     try {
       sessionStorage.removeItem('fluidhe_auth_user');
       sessionStorage.removeItem('fluidhe_is_logged_in');
+      sessionStorage.removeItem('fluidhe_machine_active');
       localStorage.removeItem('fluidhe_auth_user');
       localStorage.removeItem('fluidhe_is_logged_in');
       localStorage.removeItem('fluidhe_active_tab');
       localStorage.setItem('fluidhe_system_state', 'OFF');
       localStorage.removeItem('fluidhe_current_session');
+      localStorage.removeItem('fluidhe_app_session_started');
     } catch (e) { }
   };
 
@@ -2770,7 +2811,7 @@ export default function FluidHEDashboard() {
       console.error('Gagal shutdown saat logout:', e);
     }
 
-    // 2. Arsipkan sesi praktikum jika ada
+    // 2. Arsipkan sesi praktikum jika ada dan HANYA JIKA memiliki data pengukuran (alat aktif)
     const now = new Date();
     const finalSession: SystemSession | null = currentSession
       ? {
@@ -2782,7 +2823,13 @@ export default function FluidHEDashboard() {
       }
       : null;
 
-    if (finalSession) {
+    const hasRealData = Boolean(
+      finalSession &&
+      ((finalSession.pointsCount && finalSession.pointsCount > 0) ||
+        (finalSession.data && finalSession.data.length > 0))
+    );
+
+    if (finalSession && hasRealData) {
       setArchivedSessions((prev) => {
         const updated = [finalSession, ...prev.filter((s) => s.id !== finalSession.id)];
         return updated;
@@ -3033,7 +3080,6 @@ export default function FluidHEDashboard() {
         showLoginPassword={showLoginPassword}
         setShowLoginPassword={setShowLoginPassword}
         handleLogin={handleLogin}
-        onGuestLogin={handleGuestLogin}
         isResetModalOpen={isResetModalOpen}
         setIsResetModalOpen={setIsResetModalOpen}
         resetStep={resetStep}
@@ -3392,22 +3438,6 @@ export default function FluidHEDashboard() {
             </button>
           )}
 
-          {isGuestMode && systemState !== 'ACTIVE' && (
-            <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 bg-sky-50 text-sky-800 border border-sky-300 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap shrink-0 shadow-2xs">
-              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-sky-500 animate-pulse shrink-0" />
-              <span>Mode Tamu</span>
-              <button
-                type="button"
-                onClick={() => setIsStartupModalOpen(true)}
-                className="ml-0.5 sm:ml-1 px-1.5 sm:px-2 py-0.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-[9.5px] sm:text-[10px] font-black rounded-md shadow-xs transition active:scale-95 cursor-pointer flex items-center gap-1"
-                title="Mulai sistem fisik & koneksi IoT"
-              >
-                <Play className="w-2.5 h-2.5 fill-white" />
-                <span>Mulai IoT</span>
-              </button>
-            </div>
-          )}
-
           {/* User Profile Pill & Logout */}
           <div className="flex items-center gap-1 sm:gap-2 pl-1 sm:pl-2 border-l border-slate-200 shrink-0">
             <div className="text-right hidden lg:block">
@@ -3431,12 +3461,13 @@ export default function FluidHEDashboard() {
         </div>
       </header>
 
-      {/* ─── CONDITIONAL RENDER: STANDBY SCREEN (WHEN MACHINE IS OFF) VS ACTIVE DASHBOARD ─── */}
-      {systemState !== 'ACTIVE' && !isGuestMode ? (
+      {/* ─── CONDITIONAL RENDER: STANDBY SCREEN (SESSION INITIALIZATION) VS ACTIVE DASHBOARD ─── */}
+      {!isAppSessionStarted ? (
         <SystemStandbyScreen
           systemState={systemState}
           operatorName={currentUser?.name || 'Operator'}
           defaultFlowMode={operationMode}
+          onStartApp={handleStartAppSession}
           onStartSystem={handleConfirmStartup}
           recentArchivesCount={archivedSessions.length}
         />
@@ -3714,6 +3745,7 @@ export default function FluidHEDashboard() {
                   fc2Valve={supabaseControls?.servo_angle_2 !== undefined ? supabaseControls.servo_angle_2 : fc2Valve}
                   onCardClick={() => setActiveTab('control')}
                   isHardwareOnline={isSystemAndHardwareOnline}
+                  onStartMachine={() => setIsStartupModalOpen(true)}
                 />
 
                 {/* 2. Real-Time Temperature & Pressure Multi-Line Chart */}
@@ -3721,6 +3753,7 @@ export default function FluidHEDashboard() {
                   telemetryHistory={telemetryHistory}
                   operatorSessionLimit={operatorSessionLimit}
                   isHardwareOnline={isSystemAndHardwareOnline}
+                  onStartMachine={() => setIsStartupModalOpen(true)}
                 />
 
                 {/* 3. Interactive Digital Twin P&ID Visual Diagram */}
@@ -5007,6 +5040,7 @@ export default function FluidHEDashboard() {
         onConfirmStartup={handleConfirmStartup}
         operatorName={currentUser?.name || 'Operator'}
         defaultFlowMode={operationMode}
+        currentSessionTitle={currentSession?.title}
       />
 
       {/* ─── SESSION SUMMARY & SAFE SHUTDOWN MODAL ─── */}
@@ -5030,6 +5064,7 @@ export default function FluidHEDashboard() {
         onConfirmLogoutOnly={handleLogoutOnly}
         onConfirmShutdownAndLogout={handleConfirmShutdownAndLogout}
         systemState={systemState}
+        isHardwareOnline={isHardwareOnline}
         currentSession={currentSession}
         sessionDuration={sessionDuration}
         userName={currentUser?.name}

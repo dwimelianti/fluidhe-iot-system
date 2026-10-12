@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Thermometer, Gauge, Activity, Loader2, WifiOff } from 'lucide-react';
+import { Thermometer, Gauge, Activity, Loader2, WifiOff, Power } from 'lucide-react';
 import { TelemetryPoint, TempLabels } from '@/types';
 
 interface TelemetryCardsProps {
@@ -15,6 +15,7 @@ interface TelemetryCardsProps {
   fc2Valve: number;
   onCardClick?: () => void;
   isHardwareOnline?: boolean;
+  onStartMachine?: () => void;
 }
 
 export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
@@ -27,7 +28,8 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
   fc1Valve,
   fc2Valve,
   onCardClick,
-  isHardwareOnline = false
+  isHardwareOnline = false,
+  onStartMachine
 }) => {
   // Sinkronisasi dinamis inlet/outlet sesuai mode arah aliran aktif (Counter vs Co-Current)
   const isT1In = tempLabels.t1.toLowerCase().includes('in');
@@ -445,11 +447,21 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
             <p className="text-xs text-slate-500 mt-2 leading-relaxed max-w-xs">
               Mesin Heat Exchanger laboratorium sedang tidak terhubung atau belum mengirimkan data. Nilai sensor disembunyikan demi menjaga kepastian pembacaan.
             </p>
-            <div className="mt-4 flex items-center gap-2">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 border border-rose-300/80 text-rose-800 text-[11px] font-extrabold uppercase tracking-wider shadow-2xs">
                 <span className="w-2 h-2 rounded-full bg-rose-500" />
                 Status: Mesin Offline
               </span>
+              {onStartMachine && (
+                <button
+                  type="button"
+                  onClick={onStartMachine}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white text-[11px] font-extrabold shadow-sm transition active:scale-95 cursor-pointer"
+                >
+                  <Power className="w-3.5 h-3.5 text-white" />
+                  <span>Hidupkan Mesin</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -66,18 +66,24 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
     setTimeout(() => setToastMsg(null), 3500);
   };
 
-  // Deduplikasi sesi secara ketat berdasarkan ID: jika sesi aktif sudah tersimpan di arsip, jangan tampilkan ganda
+  // Deduplikasi sesi secara ketat berdasarkan ID: HANYA tampilkan sesi jika memperoleh data (alat aktif)
   const allSessions = useMemo(() => {
     const sessionMap = new Map<string, SystemSession>();
-    // Taruh arsip terlebih dahulu
+    // Taruh arsip terlebih dahulu (hanya yang memiliki data sensor)
     archivedSessions.forEach((s) => {
-      if (s?.id) sessionMap.set(s.id, s);
+      const pts = typeof s?.pointsCount === 'number' ? s.pointsCount : (s?.data?.length || 0);
+      if (s?.id && (pts > 0 || (s.data && s.data.length > 0))) {
+        sessionMap.set(s.id, s);
+      }
     });
-    // Jika ada currentSession, merge dan utamakan yang memiliki data points terlengkap/terbaru
+    // Jika ada currentSession, masukkan HANYA jika data sudah masuk (alat aktif)
     if (currentSession?.id) {
-      const existing = sessionMap.get(currentSession.id);
-      if (!existing || (currentSession.data && currentSession.data.length >= (existing.data?.length || 0))) {
-        sessionMap.set(currentSession.id, { ...(existing || {}), ...currentSession });
+      const currentPts = typeof currentSession.pointsCount === 'number' ? currentSession.pointsCount : (currentSession.data?.length || 0);
+      if (currentPts > 0 || (currentSession.data && currentSession.data.length > 0)) {
+        const existing = sessionMap.get(currentSession.id);
+        if (!existing || (currentSession.data && currentSession.data.length >= (existing.data?.length || 0))) {
+          sessionMap.set(currentSession.id, { ...(existing || {}), ...currentSession });
+        }
       }
     }
     return Array.from(sessionMap.values()).sort((a, b) => {
