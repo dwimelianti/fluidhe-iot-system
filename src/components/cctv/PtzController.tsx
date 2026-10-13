@@ -58,11 +58,12 @@ export const PtzController: React.FC<PtzControllerProps> = ({
             {/* UP */}
             <button
               type="button"
+              disabled={!connected}
               onClick={() => onPtzAction('up')}
-              className={`absolute top-2 left-1/2 -translate-x-1/2 w-10 h-8 rounded-t-xl bg-white hover:bg-sky-600 text-slate-700 hover:text-white flex items-center justify-center transition active:scale-95 shadow-xs border border-slate-200 ${
+              className={`absolute top-2 left-1/2 -translate-x-1/2 w-10 h-8 rounded-t-xl bg-white hover:bg-sky-600 text-slate-700 hover:text-white flex items-center justify-center transition active:scale-95 shadow-xs border border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed ${
                 ptzMoving === 'up' ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white scale-95' : ''
               }`}
-              title="Putar Atas"
+              title={connected ? "Putar Atas" : "Kamera Offline"}
             >
               <ChevronUp className="w-4 h-4" />
             </button>
@@ -70,11 +71,12 @@ export const PtzController: React.FC<PtzControllerProps> = ({
             {/* DOWN */}
             <button
               type="button"
+              disabled={!connected}
               onClick={() => onPtzAction('down')}
-              className={`absolute bottom-2 left-1/2 -translate-x-1/2 w-10 h-8 rounded-b-xl bg-white hover:bg-sky-600 text-slate-700 hover:text-white flex items-center justify-center transition active:scale-95 shadow-xs border border-slate-200 ${
+              className={`absolute bottom-2 left-1/2 -translate-x-1/2 w-10 h-8 rounded-b-xl bg-white hover:bg-sky-600 text-slate-700 hover:text-white flex items-center justify-center transition active:scale-95 shadow-xs border border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed ${
                 ptzMoving === 'down' ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white scale-95' : ''
               }`}
-              title="Putar Bawah"
+              title={connected ? "Putar Bawah" : "Kamera Offline"}
             >
               <ChevronDown className="w-4 h-4" />
             </button>
@@ -82,11 +84,12 @@ export const PtzController: React.FC<PtzControllerProps> = ({
             {/* LEFT */}
             <button
               type="button"
+              disabled={!connected}
               onClick={() => onPtzAction('left')}
-              className={`absolute left-2 top-1/2 -translate-y-1/2 w-8 h-10 rounded-l-xl bg-white hover:bg-sky-600 text-slate-700 hover:text-white flex items-center justify-center transition active:scale-95 shadow-xs border border-slate-200 ${
+              className={`absolute left-2 top-1/2 -translate-y-1/2 w-8 h-10 rounded-l-xl bg-white hover:bg-sky-600 text-slate-700 hover:text-white flex items-center justify-center transition active:scale-95 shadow-xs border border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed ${
                 ptzMoving === 'left' ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white scale-95' : ''
               }`}
-              title="Putar Kiri"
+              title={connected ? "Putar Kiri" : "Kamera Offline"}
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -94,11 +97,12 @@ export const PtzController: React.FC<PtzControllerProps> = ({
             {/* RIGHT */}
             <button
               type="button"
+              disabled={!connected}
               onClick={() => onPtzAction('right')}
-              className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-10 rounded-r-xl bg-white hover:bg-sky-600 text-slate-700 hover:text-white flex items-center justify-center transition active:scale-95 shadow-xs border border-slate-200 ${
+              className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-10 rounded-r-xl bg-white hover:bg-sky-600 text-slate-700 hover:text-white flex items-center justify-center transition active:scale-95 shadow-xs border border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed ${
                 ptzMoving === 'right' ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white scale-95' : ''
               }`}
-              title="Putar Kanan"
+              title={connected ? "Putar Kanan" : "Kamera Offline"}
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -106,9 +110,10 @@ export const PtzController: React.FC<PtzControllerProps> = ({
             {/* CENTER: Auto Reset */}
             <button
               type="button"
+              disabled={!connected}
               onClick={() => onPtzAction('center')}
-              className="w-12 h-12 rounded-full bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-md flex items-center justify-center text-[10px] font-bold transition active:scale-90 border border-sky-400/50 cursor-pointer"
-              title="Reset Posisi"
+              className="w-12 h-12 rounded-full bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-md flex items-center justify-center text-[10px] font-bold transition active:scale-90 border border-sky-400/50 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              title={connected ? "Reset Posisi" : "Kamera Offline"}
             >
               <RotateCw className="w-4 h-4" />
             </button>
@@ -142,8 +147,8 @@ export const PtzController: React.FC<PtzControllerProps> = ({
             </strong>
           </div>
           <div className="p-3 bg-white rounded-xl border border-slate-200/80 shadow-xs">
-            <span className="text-slate-500 text-[10.5px] font-semibold block truncate" title={tempLabels?.t2 || 'T2 (Cold Out)'}>
-              {tempLabels?.t2 ? 'T2' : 'T2 (Cold Out)'}:
+            <span className="text-slate-500 text-[10.5px] font-semibold block truncate" title={tempLabels?.t2 || 'T2 (Hot Out)'}>
+              {tempLabels?.t2 ? 'T2' : 'T2 (Hot Out)'}:
             </span>
             <strong className="text-slate-900 font-extrabold font-mono text-sm block mt-0.5">
               {isHardwareOnline ? `${latestData.ti2.toFixed(1)}°C` : '-- °C'}
@@ -158,8 +163,8 @@ export const PtzController: React.FC<PtzControllerProps> = ({
             </strong>
           </div>
           <div className="p-3 bg-white rounded-xl border border-slate-200/80 shadow-xs">
-            <span className="text-slate-500 text-[10.5px] font-semibold block truncate" title={tempLabels?.t4 || 'T4 (Hot Out)'}>
-              {tempLabels?.t4 ? 'T4' : 'T4 (Hot Out)'}:
+            <span className="text-slate-500 text-[10.5px] font-semibold block truncate" title={tempLabels?.t4 || 'T4 (Cold Out)'}>
+              {tempLabels?.t4 ? 'T4' : 'T4 (Cold Out)'}:
             </span>
             <strong className="text-sky-700 font-extrabold font-mono text-sm block mt-0.5">
               {isHardwareOnline ? `${latestData.ti4.toFixed(1)}°C` : '-- °C'}

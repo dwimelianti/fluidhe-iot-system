@@ -234,7 +234,7 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
 
   // ─── Ekspor Excel Terpisah untuk Setiap Sesi yang Dipilih ───
   const exportSingleSessionToExcel = (session: SystemSession) => {
-    exportSessionToExcel(session);
+    exportSessionToExcel(session, { isAdmin: true });
   };
 
   const handleExportSelectedExcel = () => {
@@ -284,7 +284,7 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
                 </h1>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Kelola nama kelas/kelompok, perbarui judul modul, hapus sesi, dan ekspor laporan master
+                Kelola riwayat sesi praktikum, perbarui judul modul, hapus sesi, dan ekspor laporan master
               </p>
             </div>
           </div>
@@ -297,7 +297,7 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
                 className="px-3.5 py-2 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
-                <span>Master Excel (Semua Kelas)</span>
+                <span>Master Excel (Semua Sesi)</span>
               </button>
             )}
 
@@ -320,7 +320,7 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari ID sesi, nama kelas, kelompok, operator..."
+              placeholder="Cari ID sesi, nama user, operator, judul sesi..."
               className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20"
             />
           </div>
@@ -396,7 +396,6 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
                 <th className="py-3 px-3.5">ID Sesi</th>
                 <th className="py-3 px-3.5">Tanggal & Jam</th>
                 <th className="py-3 px-3.5">Nama User</th>
-                <th className="py-3 px-3.5">Nama Kelas / Kelompok</th>
                 <th className="py-3 px-3.5">Judul Sesi</th>
                 <th className="py-3 px-3.5 text-center">Data Points</th>
                 <th className="py-3 px-3.5 text-center">Aksi</th>
@@ -405,7 +404,7 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
             <tbody className="divide-y divide-slate-100 bg-white">
               {filteredSessions.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400 font-medium">
+                  <td colSpan={7} className="py-8 text-center text-slate-400 font-medium">
                     Tidak ada sesi praktikum yang cocok dengan pencarian.
                   </td>
                 </tr>
@@ -450,17 +449,6 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
                       <td className="py-3 px-3.5">
                         <span className="font-bold text-slate-800 block">{session.operatorName}</span>
                         <span className="text-[11px] text-slate-400 block">{session.operatorEmail || '-'}</span>
-                      </td>
-
-                      {/* Nama Kelas / Kelompok */}
-                      <td className="py-3 px-3.5">
-                        {session.classGroup ? (
-                          <span className="inline-block px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200">
-                            {session.classGroup}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 italic">- Belum diset -</span>
-                        )}
                       </td>
 
                       {/* Judul Sesi */}
@@ -543,20 +531,6 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
             </div>
 
             <div className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Nama Kelas / Kelompok</label>
-                <input
-                  type="text"
-                  value={editClassGroup}
-                  onChange={(e) => setEditClassGroup(e.target.value)}
-                  placeholder="Contoh: Kelas A - Kelompok 1, atau kosongkan"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-sky-500/20 focus:outline-none"
-                />
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                  Ubah teks ini jika ingin mengganti label seperti &quot;Kelas Praktikum B - Kelompok 2&quot;.
-                </p>
-              </div>
-
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Judul Modul / Sesi Praktikum</label>
                 <input

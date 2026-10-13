@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Activity, Clock, Sliders, ChevronDown, WifiOff } from 'lucide-react';
 import { TelemetryPoint } from '@/types';
 
@@ -31,7 +31,22 @@ function parseTimeToSeconds(timestampStr: string): number | null {
   // Handle "18/08/2026 10:32:05" or "10:32:05 WIB"
   const timeOnly = timestampStr.replace(/.*?\s(\d{1,2}[:.]\d{1,2}(?:[:.]\d{1,2})?).*/, '$1');
   const cleanStr = (timeOnly || timestampStr).replace(/[^\d:.]/g, '');
+
+  // If 3 or 4 digits without separator (e.g. "1430" or "930")
+  if (/^\d{3,4}$/.test(cleanStr)) {
+    const padded = cleanStr.padStart(4, '0');
+    const hours = Math.min(23, Math.max(0, parseInt(padded.slice(0, 2), 10)));
+    const minutes = Math.min(59, Math.max(0, parseInt(padded.slice(2, 4), 10)));
+    return hours * 3600 + minutes * 60;
+  }
+
   const parts = cleanStr.split(/[:.]/).map(Number);
+
+  // If single number entered, e.g. "14" or "9" -> treat as full hour (14:00:00)
+  if (parts.length === 1 && !isNaN(parts[0])) {
+    const hours = Math.min(23, Math.max(0, parts[0]));
+    return hours * 3600;
+  }
 
   if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
     const hours = Math.min(23, Math.max(0, parts[0]));
@@ -56,7 +71,7 @@ function formatSecondsToTime(totalSeconds: number, includeSeconds = false): stri
   const mm = String(m).padStart(2, '0');
   const ss = String(s).padStart(2, '0');
 
-  return includeSeconds ? `${hh}:${mm}:${ss}` : `${hh}:${mm}`;
+  return includeSeconds ? `${hh}.${mm}.${ss}` : `${hh}.${mm}`;
 }
 
 /**
@@ -116,6 +131,23 @@ export const LiveChart: React.FC<LiveChartProps> = ({
   const [durationMode, setDurationMode] = useState<DurationMode>('60m');
   const [isTimeConfigOpen, setIsTimeConfigOpen] = useState<boolean>(false);
   const [userSelectedEnd, setUserSelectedEnd] = useState<string | null>(null);
+  const [manualTimeInput, setManualTimeInput] = useState<string>('');
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Close time popover when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setIsTimeConfigOpen(false);
+      }
+    }
+    if (isTimeConfigOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isTimeConfigOpen]);
 
   // Real-time ticking clock for synchronized UI and indicators
   const [now, setNow] = useState<Date>(() => new Date());
@@ -179,6 +211,28 @@ export const LiveChart: React.FC<LiveChartProps> = ({
       return secA - secB;
     });
   }, [telemetryHistory]);
+
+  // Latest timestamp from available telemetry data
+  const latestTelemetryTime = useMemo(() => {
+    if (!sortedHistory || sortedHistory.length === 0) return null;
+    const last = sortedHistory[sortedHistory.length - 1];
+    return last.timestamp;
+  }, [sortedHistory]);
+
+  const handleApplyManualTime = (rawInput: string) => {
+    const trimmed = rawInput.trim();
+    if (!trimmed) return;
+    const parsedSec = parseTimeToSeconds(trimmed);
+    if (parsedSec === null) return;
+
+    const formatted = formatSecondsToTime(parsedSec).replace('.', ':');
+    setUserSelectedEnd(formatted);
+    setManualTimeInput(formatted);
+    if (durationMode === 'live') {
+      setDurationMode('60m');
+    }
+    setIsTimeConfigOpen(false);
+  };
 
   // SVG Dimension Constants
   const width = 880;
@@ -259,18 +313,31 @@ export const LiveChart: React.FC<LiveChartProps> = ({
   // Map Telemetry Points to X Coordinates based on Time Window or Point Index
   const { filteredPoints, timeTicks } = useMemo(() => {
     if (durationMode === 'live') {
-      // Rolling live mode: Distribute evenly across points
       const total = sortedHistory.length;
+      if (total === 0) {
+        return { filteredPoints: [], timeTicks: [] };
+      }
+
       const points = sortedHistory.map((d, i) => {
-        const x = total <= 1 ? padLeft : padLeft + (i / (total - 1)) * plotWidth;
+        const x = total <= 1 ? padLeft + plotWidth : padLeft + (i / (total - 1)) * plotWidth;
         return { ...d, plotX: x, originalIndex: i };
       });
 
-      const tickStep = Math.max(1, Math.floor(total / 6));
-      const ticks = points.filter((_, i) => i % tickStep === 0 || i === total - 1).map((p) => ({
-        x: p.plotX,
-        label: p.timestamp
-      }));
+      // Ticks generation: Ambil timestamp asli sesuai jam dan data yang masuk secara simetris
+      // Menjamin rapi dan TIDAK PERNAH tumpang tindih (setiap tick berjarak ~160px)
+      const numTicks = Math.min(6, total);
+      const ticks: { x: number; label: string }[] = [];
+
+      for (let k = 0; k < numTicks; k++) {
+        const idx = numTicks <= 1 ? 0 : Math.round((k / (numTicks - 1)) * (total - 1));
+        const pt = points[idx];
+        if (pt) {
+          ticks.push({
+            x: pt.plotX,
+            label: pt.timestamp
+          });
+        }
+      }
 
       return { filteredPoints: points, timeTicks: ticks };
     }
@@ -322,7 +389,7 @@ export const LiveChart: React.FC<LiveChartProps> = ({
         };
       });
 
-    // Generate evenly spaced time tick marks across the duration (e.g. 10:17 ... 11:17)
+    // Generate evenly spaced time tick marks across the duration (e.g. 10.17 ... 11.17)
     const numTicks = durationMode === '15m' ? 5 : 6;
     const ticks = [];
     for (let i = 0; i <= numTicks; i++) {
@@ -332,12 +399,12 @@ export const LiveChart: React.FC<LiveChartProps> = ({
       const x = padLeft + ratio * plotWidth;
       ticks.push({
         x,
-        label: formatSecondsToTime(tickSec)
+        label: formatSecondsToTime(tickSec, true)
       });
     }
 
     return { filteredPoints: mapped, timeTicks: ticks };
-  }, [sortedHistory, durationMode, timeWindow, padLeft, plotWidth]);
+  }, [sortedHistory, durationMode, timeWindow, padLeft, plotWidth, currentTimeSec]);
 
   // Precompute smooth point arrays for SVG spline rendering
   const ti1Points = useMemo(
@@ -425,10 +492,7 @@ export const LiveChart: React.FC<LiveChartProps> = ({
           <div className="inline-flex p-1 bg-slate-100/90 rounded-xl border border-slate-200/80 text-xs font-bold text-slate-600 shadow-2xs">
             <button
               type="button"
-              onClick={() => {
-                setDurationMode('15m');
-                setUserSelectedEnd(null);
-              }}
+              onClick={() => setDurationMode('15m')}
               className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${durationMode === '15m' ? 'bg-white text-sky-700 shadow-xs font-extrabold' : 'hover:text-slate-900'
                 }`}
             >
@@ -436,10 +500,7 @@ export const LiveChart: React.FC<LiveChartProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => {
-                setDurationMode('30m');
-                setUserSelectedEnd(null);
-              }}
+              onClick={() => setDurationMode('30m')}
               className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${durationMode === '30m' ? 'bg-white text-sky-700 shadow-xs font-extrabold' : 'hover:text-slate-900'
                 }`}
             >
@@ -447,10 +508,7 @@ export const LiveChart: React.FC<LiveChartProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => {
-                setDurationMode('60m');
-                setUserSelectedEnd(null);
-              }}
+              onClick={() => setDurationMode('60m')}
               className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${durationMode === '60m' ? 'bg-white text-sky-700 shadow-xs font-extrabold' : 'hover:text-slate-900'
                 }`}
             >
@@ -458,10 +516,7 @@ export const LiveChart: React.FC<LiveChartProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => {
-                setDurationMode('120m');
-                setUserSelectedEnd(null);
-              }}
+              onClick={() => setDurationMode('120m')}
               className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${durationMode === '120m' ? 'bg-white text-sky-700 shadow-xs font-extrabold' : 'hover:text-slate-900'
                 }`}
             >
@@ -473,7 +528,7 @@ export const LiveChart: React.FC<LiveChartProps> = ({
                 setDurationMode('live');
                 setUserSelectedEnd(null);
               }}
-              className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${durationMode === 'live' ? 'bg-white text-sky-700 shadow-xs font-extrabold' : 'hover:text-slate-900'
+              className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${durationMode === 'live' && !userSelectedEnd ? 'bg-white text-sky-700 shadow-xs font-extrabold' : 'hover:text-slate-900'
                 }`}
             >
               Live
@@ -481,74 +536,142 @@ export const LiveChart: React.FC<LiveChartProps> = ({
           </div>
 
           {/* Time Picker Trigger Button */}
-          {durationMode !== 'live' && (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsTimeConfigOpen(!isTimeConfigOpen)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
-                title="Atur Waktu Acuan Grafik"
-              >
-                <Sliders className="w-3.5 h-3.5 text-sky-600" />
-                <span>{timeWindow.isLive ? 'Waktu: Saat Ini' : `Sampai: ${timeWindow.endTimeStr}`}</span>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
-              </button>
+          <div className="relative" ref={popoverRef}>
+            <button
+              type="button"
+              onClick={() => {
+                if (!isTimeConfigOpen) {
+                  setManualTimeInput(userSelectedEnd || '');
+                }
+                setIsTimeConfigOpen(!isTimeConfigOpen);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
+              title="Atur Waktu Acuan Grafik"
+            >
+              <Sliders className="w-3.5 h-3.5 text-sky-600" />
+              <span>{timeWindow.isLive ? 'Waktu: Saat Ini' : `Sampai: ${timeWindow.endTimeStr}`}</span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
+            </button>
 
-              {/* Time Configuration Dropdown Popover */}
-              {isTimeConfigOpen && (
-                <div className="absolute right-0 mt-1.5 w-68 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-30 space-y-2.5 text-xs animate-in fade-in zoom-in-95">
-                  <div className="font-bold text-slate-800 flex items-center justify-between border-b border-slate-100 pb-1.5">
-                    <span>Acuan Waktu Akhir:</span>
-                    <span className="text-[10px] text-sky-600 font-semibold">{timeWindow.durationMin} Menit Mundur</span>
-                  </div>
+            {/* Time Configuration Dropdown Popover */}
+            {isTimeConfigOpen && (
+              <div className="absolute right-0 mt-1.5 w-76 bg-white border border-slate-200 rounded-2xl shadow-xl p-3.5 z-30 space-y-3 text-xs animate-in fade-in zoom-in-95">
+                <div className="font-bold text-slate-800 flex items-center justify-between border-b border-slate-100 pb-2">
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Atur Jam Acuan Grafik</span>
+                  </span>
+                  <span className="text-[10px] text-sky-600 font-semibold bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100">
+                    {durationMode === 'live' && !userSelectedEnd ? 'Mode Live' : `${timeWindow.durationMin} Menit Mundur`}
+                  </span>
+                </div>
 
-                  {/* Dynamic Time Quick-Select Option */}
-                  <div className="space-y-1.5">
+                {/* Preset Options: Live & Latest Telemetry */}
+                <div className="space-y-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserSelectedEnd(null);
+                      setIsTimeConfigOpen(false);
+                    }}
+                    className={`w-full px-2.5 py-1.5 border rounded-xl font-bold text-left flex items-center justify-between transition cursor-pointer ${!userSelectedEnd
+                        ? 'bg-sky-50 text-sky-800 border-sky-300 ring-1 ring-sky-200'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                      }`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Waktu Saat Ini (Live)
+                    </span>
+                    <span className="font-mono text-[11px] text-slate-500">{formatSecondsToTime(currentTimeSec)}</span>
+                  </button>
+
+                  {latestTelemetryTime && (
                     <button
                       type="button"
                       onClick={() => {
-                        setUserSelectedEnd(null);
-                        setIsTimeConfigOpen(false);
+                        handleApplyManualTime(latestTelemetryTime);
                       }}
-                      className={`w-full px-2.5 py-1.5 border rounded-xl font-bold text-left flex items-center justify-between transition cursor-pointer ${
-                        timeWindow.isLive
+                      className={`w-full px-2.5 py-1.5 border rounded-xl font-bold text-left flex items-center justify-between transition cursor-pointer ${userSelectedEnd && parseTimeToSeconds(userSelectedEnd) === parseTimeToSeconds(latestTelemetryTime)
                           ? 'bg-sky-50 text-sky-800 border-sky-300 ring-1 ring-sky-200'
                           : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
                         }`}
                     >
                       <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Waktu Saat Ini (Live)
+                        <span className="w-2 h-2 rounded-full bg-sky-500" /> Jam Data Terakhir
                       </span>
-                      <span className="font-mono text-[11px] text-slate-500">{formatSecondsToTime(currentTimeSec)}</span>
+                      <span className="font-mono text-[11px] text-slate-500">{latestTelemetryTime}</span>
                     </button>
+                  )}
+                </div>
+
+                {/* Input Jam Manual */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="manual-time-input" className="text-[11px] font-bold text-slate-700">
+                      Masukkan Jam Manual:
+                    </label>
+                    {userSelectedEnd && (
+                      <span className="text-[10px] text-sky-600 font-semibold font-mono bg-sky-50 px-1.5 py-0.5 rounded">
+                        Aktif: {userSelectedEnd}
+                      </span>
+                    )}
                   </div>
 
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-semibold text-slate-400">Atau lihat arsip hingga jam:</p>
-                    <div className="grid grid-cols-4 gap-1 pt-0.5">
-                      {['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'].map((time) => (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleApplyManualTime(manualTimeInput);
+                    }}
+                    className="flex items-center gap-1.5"
+                  >
+                    <input
+                      id="manual-time-input"
+                      type="text"
+                      value={manualTimeInput}
+                      onChange={(e) => setManualTimeInput(e.target.value)}
+                      placeholder="Contoh: 14:00 atau 14:30"
+                      autoFocus
+                      className="w-full px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-200 focus:border-sky-500 rounded-xl font-mono text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition"
+                    />
+                    <button
+                      type="submit"
+                      className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer shrink-0"
+                    >
+                      Terapkan
+                    </button>
+                  </form>
+                  <p className="text-[9.5px] text-slate-400">
+                    Bisa ketik jam (misal <span className="font-mono text-slate-600 font-semibold">14:00</span>, <span className="font-mono text-slate-600 font-semibold">14.28</span>, atau <span className="font-mono text-slate-600 font-semibold">13</span>).
+                  </p>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="space-y-1 pt-1.5 border-t border-slate-100">
+                  <p className="text-[10px] font-semibold text-slate-400">Atau pilih jam cepat:</p>
+                  <div className="grid grid-cols-4 gap-1 pt-0.5">
+                    {['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'].map((time) => {
+                      const isSelected = userSelectedEnd && parseTimeToSeconds(userSelectedEnd) === parseTimeToSeconds(time);
+                      return (
                         <button
                           key={time}
                           type="button"
                           onClick={() => {
-                            setUserSelectedEnd(time);
-                            setIsTimeConfigOpen(false);
+                            handleApplyManualTime(time);
                           }}
-                          className={`px-1.5 py-1 rounded-lg text-center font-bold text-[11px] transition cursor-pointer ${
-                            !timeWindow.isLive && userSelectedEnd === time
+                          className={`px-1.5 py-1 rounded-lg text-center font-bold text-[11px] transition cursor-pointer ${isSelected
                               ? 'bg-sky-600 text-white shadow-xs'
                               : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200'
                             }`}
                         >
                           {time}
                         </button>
-                      ))}
-                    </div>
+                      );
+                    })}
                   </div>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -672,8 +795,8 @@ export const LiveChart: React.FC<LiveChartProps> = ({
               <text
                 x={tick.x}
                 y={baselineY + 20}
-                textAnchor="middle"
-                className="text-[10px] fill-slate-500 font-semibold"
+                textAnchor={idx === 0 ? 'start' : idx === timeTicks.length - 1 ? 'end' : 'middle'}
+                className="text-[10px] fill-slate-500 font-semibold font-mono"
               >
                 {tick.label}
               </text>
@@ -719,20 +842,20 @@ export const LiveChart: React.FC<LiveChartProps> = ({
               />
             )}
 
-            {/* T2: Cold Outlet */}
+            {/* T2: Hot Outlet */}
             {(activeChannel === 'all' || activeChannel === 'ti2') && (
               <path
                 d={ti2Path}
                 fill="none"
-                stroke="#0284C7"
+                stroke="#F43F5E"
                 strokeWidth={activeChannel === 'ti2' ? '3.5' : '2'}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="transition-all duration-500 ease-out opacity-90"
+                className="transition-all duration-500 ease-out drop-shadow-sm opacity-90"
               />
             )}
 
-            {/* T1: Hot Stream (Kiri) */}
+            {/* T1: Hot Stream (Inlet) */}
             {(activeChannel === 'all' || activeChannel === 'ti1') && (
               <path
                 d={ti1Path}
@@ -745,16 +868,16 @@ export const LiveChart: React.FC<LiveChartProps> = ({
               />
             )}
 
-            {/* T4: Hot Stream (Kanan) */}
+            {/* T4: Cold Outlet */}
             {(activeChannel === 'all' || activeChannel === 'ti4') && (
               <path
                 d={ti4Path}
                 fill="none"
-                stroke="#F43F5E"
-                strokeWidth={activeChannel === 'ti4' ? '4' : '3'}
+                stroke="#0284C7"
+                strokeWidth={activeChannel === 'ti4' ? '4' : '2.5'}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="transition-all duration-500 ease-out drop-shadow-sm"
+                className="transition-all duration-500 ease-out opacity-90"
               />
             )}
           </g>
@@ -827,10 +950,10 @@ export const LiveChart: React.FC<LiveChartProps> = ({
               )}
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-[11px]">
-              <span className="text-amber-400 font-bold">T1 (Hot Kiri): {hoveredPoint.ti1.toFixed(1)}°C</span>
-              <span className="text-cyan-400 font-bold">T2 (Cold Out): {hoveredPoint.ti2.toFixed(1)}°C</span>
+              <span className="text-amber-400 font-bold">T1 (Hot In): {hoveredPoint.ti1.toFixed(1)}°C</span>
+              <span className="text-rose-400 font-bold">T2 (Hot Out): {hoveredPoint.ti2.toFixed(1)}°C</span>
               <span className="text-teal-400 font-bold">T3 (Cold In): {hoveredPoint.ti3.toFixed(1)}°C</span>
-              <span className="text-rose-400 font-bold">T4 (Hot Kanan): {hoveredPoint.ti4.toFixed(1)}°C</span>
+              <span className="text-sky-400 font-bold">T4 (Cold Out): {hoveredPoint.ti4.toFixed(1)}°C</span>
             </div>
           </div>
         )}
@@ -845,17 +968,17 @@ export const LiveChart: React.FC<LiveChartProps> = ({
             }`}
         >
           <span className="w-3.5 h-1.5 bg-amber-600 rounded-full shadow-xs" />
-          <span className="text-amber-900">T1 (Hot Stream - Kiri)</span>
+          <span className="text-amber-900">T1 (Hot In)</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveChannel(activeChannel === 'ti2' ? 'all' : 'ti2')}
-          className={`flex items-center gap-2 cursor-pointer transition py-1 px-2.5 rounded-lg ${activeChannel === 'ti2' ? 'bg-sky-50 ring-1 ring-sky-300 font-bold scale-105' : 'hover:bg-slate-50'
+          className={`flex items-center gap-2 cursor-pointer transition py-1 px-2.5 rounded-lg ${activeChannel === 'ti2' ? 'bg-rose-50 ring-1 ring-rose-300 font-bold scale-105' : 'hover:bg-slate-50'
             }`}
         >
-          <span className="w-3.5 h-1.5 bg-sky-600 rounded-full shadow-xs" />
-          <span className="text-sky-900">T2 (Cold Outlet - Atas)</span>
+          <span className="w-3.5 h-1.5 bg-rose-600 rounded-full shadow-xs" />
+          <span className="text-rose-900">T2 (Hot Out)</span>
         </button>
 
         <button
@@ -865,17 +988,17 @@ export const LiveChart: React.FC<LiveChartProps> = ({
             }`}
         >
           <span className="w-3.5 h-1.5 bg-teal-600 rounded-full border-dashed" />
-          <span className="text-teal-900">T3 (Cold Inlet - Suplai)</span>
+          <span className="text-teal-900">T3 (Cold In)</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveChannel(activeChannel === 'ti4' ? 'all' : 'ti4')}
-          className={`flex items-center gap-2 cursor-pointer transition py-1 px-2.5 rounded-lg ${activeChannel === 'ti4' ? 'bg-rose-50 ring-1 ring-rose-300 font-bold scale-105' : 'hover:bg-slate-50'
+          className={`flex items-center gap-2 cursor-pointer transition py-1 px-2.5 rounded-lg ${activeChannel === 'ti4' ? 'bg-sky-50 ring-1 ring-sky-300 font-bold scale-105' : 'hover:bg-slate-50'
             }`}
         >
-          <span className="w-3.5 h-1.5 bg-rose-600 rounded-full shadow-xs" />
-          <span className="text-rose-900">T4 (Hot Stream - Kanan)</span>
+          <span className="w-3.5 h-1.5 bg-sky-600 rounded-full shadow-xs" />
+          <span className="text-sky-900">T4 (Cold Out)</span>
         </button>
 
         {activeChannel !== 'all' && (

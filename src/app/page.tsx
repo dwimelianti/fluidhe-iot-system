@@ -127,6 +127,7 @@ import {
   exportSessionToExcel,
   exportMasterAllClassesExcel
 } from '@/lib/excel-export';
+import { isSessionInDateFilter } from '@/lib/dateFormatter';
 import {
   UserRole,
   UserItem,
@@ -179,25 +180,15 @@ export default function FluidHEDashboard() {
     handleTriggerPowerPush
   } = useSupabaseIntegration();
 
-  // Dynamic Temperature Labels based on Active flow_mode ("COUNTER" vs "CO-CURRENT")
+  // Dynamic Temperature Labels: T1->T2 = Fluida Panas (Hot In -> Hot Out), T3->T4 = Fluida Dingin (Cold In -> Cold Out)
   const tempLabels = useMemo(() => {
-    const isCounter = (supabaseControls?.flow_mode || 'COUNTER') === 'COUNTER';
-    if (isCounter) {
-      return {
-        t1: 'Termostat T1 (Hot In)',
-        t2: 'Termostat T2 (Cold Out)',
-        t3: 'Termostat T3 (Cold In)',
-        t4: 'Termostat T4 (Hot Out)',
-      };
-    } else {
-      return {
-        t1: 'Termostat T1 (Hot Out)',
-        t2: 'Termostat T2 (Cold Out)',
-        t3: 'Termostat T3 (Cold In)',
-        t4: 'Termostat T4 (Hot In)',
-      };
-    }
-  }, [supabaseControls?.flow_mode]);
+    return {
+      t1: 'Termostat T1 (Hot In)',
+      t2: 'Termostat T2 (Hot Out)',
+      t3: 'Termostat T3 (Cold In)',
+      t4: 'Termostat T4 (Cold Out)',
+    };
+  }, []);
 
   useEffect(() => {
     if (supabaseControls?.flow_mode) {
@@ -329,9 +320,51 @@ export default function FluidHEDashboard() {
     }
   }, [activeTab]);
 
-  // ─── OPERATOR PRACTICE SESSION COUNTDOWN STATE (ADMIN MANAGED) ───
-  const [operatorSessionLimit, setOperatorSessionLimit] = useState<number>(30); // minutes
-  const [operatorSessionRemaining, setOperatorSessionRemaining] = useState<number>(1800); // seconds
+  // ─── OPERATOR PRACTICE SESSION COUNTDOWN STATE (ADMIN MANAGED & REFRESH-PROOF) ───
+  const [operatorSessionLimit, setOperatorSessionLimit] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('fluidhe_operator_session_limit');
+        if (saved) {
+          const parsed = parseInt(saved, 10);
+          if (!isNaN(parsed) && parsed > 0) return parsed;
+        }
+      } catch (e) { }
+    }
+    return 30;
+  });
+
+  const [operatorSessionRemaining, setOperatorSessionRemaining] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedSessionRaw = localStorage.getItem('fluidhe_current_session');
+        const savedLimit = localStorage.getItem('fluidhe_operator_session_limit');
+        const limitMins = savedLimit ? parseInt(savedLimit, 10) || 30 : 30;
+        if (savedSessionRaw) {
+          const parsed = JSON.parse(savedSessionRaw);
+          if (parsed?.startTimeMs) {
+            const elapsed = Math.max(0, Math.floor((Date.now() - parsed.startTimeMs) / 1000));
+            return Math.max(0, (limitMins * 60) - elapsed);
+          }
+        }
+        return limitMins * 60;
+      } catch (e) { }
+    }
+    return 1800;
+  });
+
+  const handleUpdateOperatorSessionLimit = (limit: number) => {
+    setOperatorSessionLimit(limit);
+    try {
+      localStorage.setItem('fluidhe_operator_session_limit', String(limit));
+    } catch (e) { }
+    if (currentSession?.startTimeMs) {
+      const elapsedSec = Math.max(0, Math.floor((Date.now() - currentSession.startTimeMs) / 1000));
+      setOperatorSessionRemaining(Math.max(0, (limit * 60) - elapsedSec));
+    } else {
+      setOperatorSessionRemaining(limit * 60);
+    }
+  };
   const [isSessionInfoModalOpen, setIsSessionInfoModalOpen] = useState<boolean>(false);
   const [sessionExpiredModal, setSessionExpiredModal] = useState<boolean>(false);
   const [scheduleRestrictionNotice, setScheduleRestrictionNotice] = useState<string | null>(null);
@@ -438,6 +471,11 @@ export default function FluidHEDashboard() {
           if (parsedUser?.email) {
             setCurrentUser(parsedUser);
             setIsLoggedIn(true);
+            fetch('/api/users', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: parsedUser.email, lastSeen: Date.now() })
+            }).catch(() => { });
           }
         } catch (e) { }
       }
@@ -483,6 +521,15 @@ export default function FluidHEDashboard() {
             if (parsedSession.startTimeMs) {
               const elapsedSec = Math.max(0, Math.floor((Date.now() - parsedSession.startTimeMs) / 1000));
               setSessionDuration(elapsedSec);
+
+              // Pulihkan sisa durasi sesi operator secara akurat agar TIDAK reset ke 30 menit saat refresh F5
+              const savedLimitRaw = localStorage.getItem('fluidhe_operator_session_limit');
+              const limitMins = savedLimitRaw ? parseInt(savedLimitRaw, 10) || 30 : operatorSessionLimit;
+              const remainingSec = Math.max(0, (limitMins * 60) - elapsedSec);
+              setOperatorSessionRemaining(remainingSec);
+              if (remainingSec <= 0) {
+                setSessionExpiredModal(true);
+              }
             }
 
             // Pulihkan riwayat telemetri sesi aktif ke chart
@@ -808,13 +855,19 @@ export default function FluidHEDashboard() {
     }
 
     const sessionToExport: SystemSession = {
-      id: baseSession?.id || (selectedLogsSessionId !== 'CURRENT' ? selectedLogsSessionId : `SES-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`),
-      title: baseSession?.title || 'Praktikum Heat Exchanger',
-      date: baseSession?.date || new Date().toISOString().slice(0, 10),
+      id: selectedLogsSessionId === 'ALL'
+        ? `SES-ALL-${dateFilter}-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`
+        : (baseSession?.id || (selectedLogsSessionId !== 'CURRENT' ? selectedLogsSessionId : `SES-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`)),
+      title: selectedLogsSessionId === 'ALL'
+        ? `Akumulasi Praktikum (${dateFilter === '7Days' ? '7 Hari Terakhir' : 'Semua Sesi'})`
+        : (baseSession?.title || 'Praktikum Heat Exchanger'),
+      date: selectedLogsSessionId === 'ALL'
+        ? (dateFilter === '7Days' ? '7 Hari Terakhir' : 'Semua Tanggal')
+        : (baseSession?.date || new Date().toISOString().slice(0, 10)),
       startTime: baseSession?.startTime || (exportData[0]?.timestamp ? exportData[0].timestamp.replace(/\./g, ':') : '-'),
       endTime: baseSession?.endTime || (exportData[exportData.length - 1]?.timestamp ? exportData[exportData.length - 1].timestamp.replace(/\./g, ':') : '-'),
       startTimeMs: baseSession?.startTimeMs || Date.now(),
-      operatorName: baseSession?.operatorName || currentUser?.name || 'Operator',
+      operatorName: selectedLogsSessionId === 'ALL' ? (classFilter !== 'ALL' ? classFilter : 'Seluruh Operator') : (baseSession?.operatorName || currentUser?.name || 'Operator'),
       operatorEmail: baseSession?.operatorEmail || currentUser?.email,
       operatorRole: baseSession?.operatorRole || (currentUser?.role as any) || 'operator',
       classGroup: baseSession?.classGroup || currentUser?.name,
@@ -825,7 +878,7 @@ export default function FluidHEDashboard() {
     };
 
     try {
-      const { fileName } = exportSessionToExcel(sessionToExport);
+      const { fileName } = exportSessionToExcel(sessionToExport, { isAdmin: currentUser?.role === 'admin' });
       triggerCctvToast(`Berhasil mengekspor sesi (${fileName})`, 'success');
     } catch (err) {
       console.error('Failed to export session Excel:', err);
@@ -884,7 +937,7 @@ export default function FluidHEDashboard() {
   // ─── USER MANAGEMENT STATE (2-TIER: ADMIN, OPERATOR) ───
   const todayStr = new Date().toISOString().slice(0, 10);
   const [usersList, setUsersList] = useState<UserItem[]>([
-    { id: 'USR-01', name: 'Admin Lab (Anugrah)', email: 'anugrahtriplecycle@gmail.com', role: 'admin', status: 'Active', lastLogin: 'Belum Pernah', isScheduleRestricted: false }
+    { id: 'USR-01', name: 'Admin HE', email: 'anugrahtriplecycle@gmail.com', role: 'admin', status: 'Active', lastLogin: 'Belum Pernah', isScheduleRestricted: false }
   ]);
   const [showAddUserModal, setShowAddUserModal] = useState<boolean>(false);
   const [newUserName, setNewUserName] = useState<string>('');
@@ -901,6 +954,9 @@ export default function FluidHEDashboard() {
   const DEFAULT_PASSWORDS: Record<string, string> = {
     'admin@uad.ac.id': 'admin123',
     'anugrahtriplecycle@gmail.com': 'admin123',
+    'Admin HE': 'admin123',
+    'admin he': 'admin123',
+    '1': 'admin123',
     'admin.a@uad.ac.id': '1234.Admin',
     'Admin A': '1234.Admin'
   };
@@ -1071,8 +1127,14 @@ export default function FluidHEDashboard() {
 
     const email = newUserEmail.toLowerCase().trim();
 
-    if (usersList.some(u => u.email.toLowerCase() === email)) {
-      setAddUserError(`Email ${email} sudah terdaftar di sistem!`);
+    const cleanName = newUserName.toLowerCase().trim();
+
+    if (usersList.some(u => u.email.toLowerCase().trim() === email)) {
+      setAddUserError(`Email "${email}" sudah terdaftar di sistem! Tidak bisa didaftarkan kembali.`);
+      return;
+    }
+    if (usersList.some(u => u.name.toLowerCase().trim() === cleanName)) {
+      setAddUserError(`Nama pengguna "${newUserName.trim()}" sudah digunakan! Silakan gunakan nama yang berbeda.`);
       return;
     }
 
@@ -1230,8 +1292,9 @@ export default function FluidHEDashboard() {
   const [cctvStreamSource, setCctvStreamSource] = useState<'local' | 'custom' | 'demo'>('custom');
   const [isEditingCctvUrl, setIsEditingCctvUrl] = useState<boolean>(false);
   const [tempCctvUrl, setTempCctvUrl] = useState<string>('');
+  const [isCctvOnline, setIsCctvOnline] = useState<boolean>(false);
 
-  // Auto-detect Cloudflare tunnel URL (from API, localStorage, or query params)
+  // Auto-detect Cloudflare tunnel URL (from API, localStorage, or query params with active reachability validation)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -1262,48 +1325,26 @@ export default function FluidHEDashboard() {
         // Default mode: jika lokal gunakan WebRTC direct, jika remote gunakan multi-protocol stream
         setCctvStreamSource(isRemote ? 'custom' : 'local');
 
-        const savedLocal = localStorage.getItem('fluidhe_cctv_public_url');
-        if (savedLocal && savedLocal.includes('screenshot-night-assists-baseball')) {
-          localStorage.removeItem('fluidhe_cctv_public_url');
-        }
-
-        if (isLocal) {
-          applyCctvUrl('http://127.0.0.1:8889');
-        } else if (paramCctv) {
-          applyCctvUrl(paramCctv);
-        } else if (savedLocal && !savedLocal.includes('screenshot-night-assists-baseball')) {
-          applyCctvUrl(savedLocal);
-        }
-
-        // 1. Tarik langsung dari database Supabase Cloud (Otomatis & Real-Time)
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://kkxfbjpbaxnmgsnxrbpj.supabase.co';
-        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_IzezoiU9oZxnS4LmMONYsg__y3vG6-K';
-        fetch(`${supabaseUrl}/rest/v1/telemetry_data?warning_status=like.CCTV_URL:*&order=id.desc&limit=1`, {
-          headers: {
-            'apikey': anonKey,
-            'Authorization': `Bearer ${anonKey}`
-          }
-        })
-          .then((res) => res.json())
-          .then((rows) => {
-            if (Array.isArray(rows) && rows.length > 0 && typeof rows[0]?.warning_status === 'string') {
-              const url = rows[0].warning_status.replace(/^CCTV_URL:/i, '').trim();
-              if (url.startsWith('http')) {
-                applyCctvUrl(url);
-              }
-            }
-          })
-          .catch(() => { });
-
-        // 2. Cadangan: Tarik dari internal proxy /api/cctv/tunnel
+        // Validasi endpoint tunnel secara langsung ke backend untuk memastikan kamera benar-benar hidup
         fetch('/api/cctv/tunnel')
           .then((res) => res.json())
           .then((data) => {
-            if (data?.success && data?.publicUrl) {
+            if (data?.success && data?.isOnline && data?.publicUrl) {
               applyCctvUrl(data.publicUrl);
+              setIsCctvOnline(true);
+            } else {
+              setIsCctvOnline(false);
+              setCctvPublicUrl('');
+              localStorage.removeItem('fluidhe_cctv_public_url');
+              // Jika param URL diberikan secara eksplisit
+              if (paramCctv && paramCctv.startsWith('http')) {
+                applyCctvUrl(paramCctv);
+              }
             }
           })
-          .catch(() => { });
+          .catch(() => {
+            setIsCctvOnline(false);
+          });
 
         if (paramTab === 'cctv') {
           setActiveTab('cctv');
@@ -1358,7 +1399,7 @@ export default function FluidHEDashboard() {
 
   // ─── DATA LOG FILTER STATES (INCLUDES 2s, 30s INTERVAL) ───
   const [logSearchQuery, setLogSearchQuery] = useState<string>('');
-  const [logInterval, setLogInterval] = useState<'1s' | '2s' | '5s' | '30s' | '1m'>('2s');
+  const [logInterval, setLogInterval] = useState<'1s' | '2s' | '5s' | '30s' | '1m' | '5m'>('2s');
   const [dateFilter, setDateFilter] = useState<string>('All');
 
   // ─── P&ID HOVER TOOLTIP ───
@@ -1416,9 +1457,9 @@ export default function FluidHEDashboard() {
         pi2: supabaseTelemetry.pressure_outlet !== undefined ? parseFloat(Number(supabaseTelemetry.pressure_outlet).toFixed(2)) : parseFloat((Number(supabaseTelemetry.pressure || 0) * 0.82).toFixed(2)),
         pi3: supabaseTelemetry.pressure_inlet_2 !== undefined ? parseFloat(Number(supabaseTelemetry.pressure_inlet_2).toFixed(2)) : parseFloat((Number(supabaseTelemetry.pressure || 0) * 0.90).toFixed(2)),
         pi4: supabaseTelemetry.pressure_outlet_2 !== undefined ? parseFloat(Number(supabaseTelemetry.pressure_outlet_2).toFixed(2)) : parseFloat((Number(supabaseTelemetry.pressure || 0) * 0.72).toFixed(2)),
-        // Nilai sensor debit hardware: flow_rate_2 adalah panas (FC1), flow_rate adalah dingin (FC2)
-        fc1: supabaseTelemetry.flow_rate_2 !== undefined ? parseFloat(Number(supabaseTelemetry.flow_rate_2).toFixed(2)) : parseFloat(Number(supabaseTelemetry.flow_rate || 0).toFixed(2)),
-        fc2: parseFloat(Number(supabaseTelemetry.flow_rate || 0).toFixed(2)),
+        // Nilai sensor debit hardware: flow_rate adalah panas (FC1), flow_rate_2 adalah dingin (FC2)
+        fc1: supabaseTelemetry.flow_rate !== undefined ? parseFloat(Number(supabaseTelemetry.flow_rate).toFixed(2)) : 0,
+        fc2: supabaseTelemetry.flow_rate_2 !== undefined ? parseFloat(Number(supabaseTelemetry.flow_rate_2).toFixed(2)) : 0,
         tc1Setpoint: supabaseControls?.target_temp || tc1Setpoint,
         heater1Active: Boolean(supabaseControls?.heater_1_status ?? isHeaterOn),
         heater2Active: Boolean(supabaseControls?.heater_2_status ?? isHeaterOn),
@@ -1560,22 +1601,32 @@ export default function FluidHEDashboard() {
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
     if (isLoggedIn && currentUser.role === 'operator') {
-      timer = setInterval(() => {
-        setOperatorSessionRemaining((prev) => {
-          if (prev <= 1) {
+      const updateRemaining = () => {
+        if (currentSession?.startTimeMs) {
+          const elapsed = Math.floor((Date.now() - currentSession.startTimeMs) / 1000);
+          const remaining = Math.max(0, (operatorSessionLimit * 60) - elapsed);
+          setOperatorSessionRemaining(remaining);
+          if (remaining <= 0) {
             setSessionExpiredModal(true);
-            return 0;
           }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      setOperatorSessionRemaining(operatorSessionLimit * 60);
+        } else {
+          setOperatorSessionRemaining((prev) => {
+            if (prev <= 1) {
+              setSessionExpiredModal(true);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }
+      };
+
+      updateRemaining();
+      timer = setInterval(updateRemaining, 1000);
     }
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [isLoggedIn, currentUser.role, operatorSessionLimit]);
+  }, [isLoggedIn, currentUser.role, operatorSessionLimit, currentSession?.startTimeMs]);
 
   // ─── 1-MINUTE TARGET TEMPERATURE WARNING TIMER EFFECT (WITH 30s SNOOZE) ───
   const warningSnoozeUntilRef = useRef<number>(0);
@@ -1713,9 +1764,9 @@ export default function FluidHEDashboard() {
         pi2: row.pressure_outlet !== undefined ? parseFloat(Number(row.pressure_outlet).toFixed(2)) : parseFloat((Number(row.pressure || 0) * 0.82).toFixed(2)),
         pi3: row.pressure_inlet_2 !== undefined ? parseFloat(Number(row.pressure_inlet_2).toFixed(2)) : parseFloat((Number(row.pressure || 0) * 0.90).toFixed(2)),
         pi4: row.pressure_outlet_2 !== undefined ? parseFloat(Number(row.pressure_outlet_2).toFixed(2)) : parseFloat((Number(row.pressure || 0) * 0.72).toFixed(2)),
-        // Nilai sensor debit hardware: flow_rate_2 adalah panas (FC1), flow_rate adalah dingin (FC2)
-        fc1: row.flow_rate_2 !== undefined ? parseFloat(Number(row.flow_rate_2).toFixed(2)) : parseFloat(Number(row.flow_rate || 0).toFixed(2)),
-        fc2: parseFloat(Number(row.flow_rate || 0).toFixed(2)),
+        // Nilai sensor debit hardware: flow_rate adalah panas (FC1), flow_rate_2 adalah dingin (FC2)
+        fc1: row.flow_rate !== undefined ? parseFloat(Number(row.flow_rate).toFixed(2)) : 0,
+        fc2: row.flow_rate_2 !== undefined ? parseFloat(Number(row.flow_rate_2).toFixed(2)) : 0,
         tc1Setpoint: supabaseControls?.target_temp || tc1Setpoint,
         heater1Active: Boolean(supabaseControls?.heater_1_status ?? isHeaterOn),
         heater2Active: Boolean(supabaseControls?.heater_2_status ?? isHeaterOn),
@@ -1846,6 +1897,12 @@ export default function FluidHEDashboard() {
     const email = resetEmailInput.toLowerCase().trim();
     if (!email) {
       setResetError('Silakan masukkan alamat email akun Anda.');
+      return;
+    }
+
+    // Proteksi: Jika sedang login di dashboard, hanya bisa mereset kata sandi akun sendiri
+    if (isLoggedIn && currentUser?.email && currentUser.email.toLowerCase().trim() !== email) {
+      setResetError('Akses Dibatasi: Anda hanya diizinkan mengganti kata sandi untuk akun Anda sendiri yang sedang aktif.');
       return;
     }
 
@@ -2506,7 +2563,7 @@ export default function FluidHEDashboard() {
       const nowIso = new Date().toISOString();
       const targetEmail = 'anugrahtriplecycle@gmail.com';
       const userInList = usersList.find((u) => u.email.toLowerCase() === targetEmail);
-      const displayName = userInList?.name || 'Admin';
+      const displayName = userInList?.name || 'Admin HE';
 
       setUsersList((prev) =>
         prev.map((u) => (u.email.toLowerCase() === targetEmail ? { ...u, lastLogin: nowIso } : u))
@@ -2705,7 +2762,7 @@ export default function FluidHEDashboard() {
       }
     } else if (actualRole === 'admin') {
       loggedInUser = {
-        name: isAsGuest ? 'Admin Lab (Tamu)' : 'Admin Lab (Anugrah)',
+        name: isAsGuest ? 'Admin Lab (Tamu)' : 'Admin HE',
         email: targetEmail,
         role: 'admin'
       };
@@ -2890,41 +2947,71 @@ export default function FluidHEDashboard() {
     await handleControlModeChange('MANUAL');
   };
 
-  // ─── ACTIVE SESSION DATA SELECTION (ANTI DATA TERCAMPUR) ───
+  // ─── ACTIVE SESSION DATA SELECTION (ANTI DATA TERCAMPUR & MODE AKUMULASI) ───
   const activeSessionData = useMemo(() => {
+    // Mode ALL: Akumulasi seluruh data sesi yang memenuhi dateFilter (dan classFilter untuk admin)
+    if (selectedLogsSessionId === 'ALL') {
+      const matchingSessions: SystemSession[] = [];
+      if (currentSession && isSessionInDateFilter(currentSession.date, dateFilter)) {
+        if (!classFilter || classFilter === 'ALL' || (currentSession.operatorEmail && currentSession.operatorEmail.toLowerCase() === classFilter.toLowerCase()) || (currentSession.operatorName && currentSession.operatorName.toLowerCase() === classFilter.toLowerCase())) {
+          matchingSessions.push(currentSession);
+        }
+      }
+      archivedSessions.forEach((s) => {
+        if (isSessionInDateFilter(s.date, dateFilter)) {
+          if (!classFilter || classFilter === 'ALL' || (s.operatorEmail && s.operatorEmail.toLowerCase() === classFilter.toLowerCase()) || (s.operatorName && s.operatorName.toLowerCase() === classFilter.toLowerCase())) {
+            matchingSessions.push(s);
+          }
+        }
+      });
+      const merged: TelemetryPoint[] = [];
+      matchingSessions.forEach((s) => {
+        if (s.data && s.data.length > 0) {
+          merged.push(...s.data);
+        }
+      });
+      return merged;
+    }
+
     const isCurrentSelected = selectedLogsSessionId === 'CURRENT' || (currentSession && selectedLogsSessionId === currentSession.id);
     if (isCurrentSelected) {
+      if (currentSession && !isSessionInDateFilter(currentSession.date, dateFilter)) {
+        return [];
+      }
       return (currentSession && currentSession.data && currentSession.data.length > 0)
         ? currentSession.data
         : telemetryHistory;
     }
+
     const archived = archivedSessions.find((s) => s.id === selectedLogsSessionId);
     if (archived && archived.data && archived.data.length > 0) {
+      if (!isSessionInDateFilter(archived.date, dateFilter)) {
+        return [];
+      }
       return archived.data;
     }
+
     // Fallback: jika sesi spesifik belum ditemukan tapi ada list archivedSessions
     if (archivedSessions.length > 0 && selectedLogsSessionId !== 'CURRENT') {
-      return archivedSessions[0].data || [];
+      const fallback = archivedSessions.find((s) => isSessionInDateFilter(s.date, dateFilter)) || archivedSessions[0];
+      return fallback.data || [];
     }
+
     if (currentSession && currentSession.data && currentSession.data.length > 0) {
-      return currentSession.data;
+      return isSessionInDateFilter(currentSession.date, dateFilter) ? currentSession.data : [];
     }
     return [];
-  }, [selectedLogsSessionId, currentSession, telemetryHistory, archivedSessions]);
+  }, [selectedLogsSessionId, currentSession, telemetryHistory, archivedSessions, dateFilter, classFilter]);
 
-  // ─── DOWNSAMPLED LOGS FOR INTERVAL EXPORT & TABLE (1s, 2s, 5s, 30s, 1m) ───
+  // ─── DOWNSAMPLED LOGS FOR INTERVAL EXPORT & TABLE (1s, 2s, 5s, 30s, 1m, 5m) ───
   const filteredLogsData = useMemo(() => {
-    const isCurrentSelected = selectedLogsSessionId === 'CURRENT' || (currentSession && selectedLogsSessionId === currentSession.id);
-    if (isCurrentSelected && (dateFilter === 'Yesterday' || dateFilter === '7Days')) {
-      return [];
-    }
-
     // 2. Multi-column search filter (Timestamp, Temperatures TI1-TI4, Heater Status, Mode)
     const q = logSearchQuery.trim().toLowerCase();
     const queryFiltered = activeSessionData.filter((d) => {
       if (!q) return true;
       return (
         d.timestamp.toLowerCase().includes(q) ||
+        (d.created_at && d.created_at.toLowerCase().includes(q)) ||
         d.ti1.toFixed(2).includes(q) ||
         d.ti2.toFixed(2).includes(q) ||
         d.ti3.toFixed(2).includes(q) ||
@@ -2943,9 +3030,11 @@ export default function FluidHEDashboard() {
       return queryFiltered.filter((_, idx) => idx % 6 === 0);
     } else if (logInterval === '1m') {
       return queryFiltered.filter((_, idx) => idx % 12 === 0);
+    } else if (logInterval === '5m') {
+      return queryFiltered.filter((_, idx) => idx % 60 === 0);
     }
     return queryFiltered;
-  }, [activeSessionData, logSearchQuery, logInterval, dateFilter]);
+  }, [activeSessionData, logSearchQuery, logInterval]);
 
   // ─── CLOUD DRIVE AUTO-SYNC & FLASHDISK DISABLE HANDLERS ───
   const getFormattedDateStr = (date: Date) => {
@@ -2979,7 +3068,10 @@ export default function FluidHEDashboard() {
         durationSeconds: sessionDuration
       };
 
-      const { blob, fileName } = exportSessionToExcel(currentOrDummySession, { returnBlob: true });
+      const { blob, fileName } = exportSessionToExcel(currentOrDummySession, {
+        returnBlob: true,
+        isAdmin: currentUser?.role === 'admin'
+      });
       if (!blob) throw new Error('Gagal menghasilkan file spreadsheet');
 
       // 2. Upload
@@ -3049,6 +3141,7 @@ export default function FluidHEDashboard() {
         deltaPHot={deltaPHot}
         onHoverSensor={setActivePidHover}
         isHardwareOnline={isSystemAndHardwareOnline}
+        isAdmin={currentUser?.role === 'admin'}
       />
     );
   };
@@ -3173,7 +3266,7 @@ export default function FluidHEDashboard() {
               Batas waktu durasi sesi pengoperasian mahasiswa (Operator) yang diizinkan Admin ({operatorSessionLimit} menit) telah berakhir.
             </p>
             <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800">
-              Harap hubungi <strong>Dosen / Asisten Lab (Admin)</strong> untuk memperpanjang durasi praktikum.
+              Harap hubungi <strong>Admin</strong> untuk memperpanjang durasi praktikum.
             </div>
             <button
               onClick={() => {
@@ -3571,7 +3664,12 @@ export default function FluidHEDashboard() {
                   <Video className="w-4 h-4 shrink-0" />
                   <span className="truncate">CCTV Feed</span>
                 </div>
-                <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-extrabold border border-emerald-200 shrink-0">Live</span>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border shrink-0 ${(isCctvOnline || webrtcConnected)
+                  ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                  : 'bg-slate-100 text-slate-500 border-slate-200'
+                  }`}>
+                  {(isCctvOnline || webrtcConnected) ? 'Live' : 'Offline'}
+                </span>
               </button>
             </nav>
 
@@ -4245,6 +4343,7 @@ export default function FluidHEDashboard() {
               <CctvTab
                 selectedCamera={selectedCamera}
                 setSelectedCamera={setSelectedCamera}
+                isCctvOnline={Boolean(isCctvOnline || webrtcConnected)}
                 cctvStreamSource={cctvStreamSource}
                 setCctvStreamSource={setCctvStreamSource}
                 cctvIpUrl={cctvIpUrl}
@@ -4305,6 +4404,8 @@ export default function FluidHEDashboard() {
                 setClassFilter={setClassFilter}
                 classesList={classesList}
                 onClearActiveSession={handleClearActiveSession}
+                targetTempHot={supabaseControls.target_temp_hot ?? supabaseControls.target_temp ?? tc1Setpoint ?? 50.0}
+                toleranceLevel={supabaseControls.tolerance_level ?? 1}
               />
             )}
 
@@ -4330,7 +4431,7 @@ export default function FluidHEDashboard() {
                 usersList={usersList}
                 setUsersList={setUsersList}
                 operatorSessionLimit={operatorSessionLimit}
-                setOperatorSessionLimit={setOperatorSessionLimit}
+                setOperatorSessionLimit={handleUpdateOperatorSessionLimit}
                 setOperatorSessionRemaining={setOperatorSessionRemaining}
                 userPasswords={userPasswords}
                 setUserPasswords={setUserPasswords}
@@ -4339,6 +4440,9 @@ export default function FluidHEDashboard() {
                 resendingEmailFor={resendingEmailFor}
                 handleResendUserCredentials={handleResendUserCredentials}
                 onOpenResetPasswordModal={(email) => {
+                  if (currentUser?.email && currentUser.email.toLowerCase().trim() !== email.toLowerCase().trim()) {
+                    return;
+                  }
                   setIsResetModalOpen(true);
                   setResetEmailInput(email);
                   setResetStep('INPUT_EMAIL');
@@ -4453,11 +4557,21 @@ export default function FluidHEDashboard() {
                       required
                       value={resetEmailInput}
                       onChange={(e) => setResetEmailInput(e.target.value)}
+                      readOnly={Boolean(isLoggedIn && currentUser?.email)}
                       placeholder="nama@webmail.uad.ac.id"
-                      className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 text-slate-800"
+                      className={`w-full pl-9 pr-4 py-2.5 border rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 text-slate-800 ${isLoggedIn && currentUser?.email
+                        ? 'bg-slate-100/90 border-slate-200 text-slate-700 cursor-not-allowed select-none font-semibold'
+                        : 'bg-slate-50 border-slate-200'
+                        }`}
                     />
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   </div>
+                  {isLoggedIn && currentUser?.email && (
+                    <p className="text-[11px] text-slate-500 font-medium mt-1.5 flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-sky-600 shrink-0" />
+                      Ganti kata sandi hanya dapat dilakukan untuk akun Anda sendiri.
+                    </p>
+                  )}
                 </div>
 
                 <button

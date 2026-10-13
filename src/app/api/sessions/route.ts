@@ -99,23 +99,27 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      // Bangun daftar agregat kelas untuk opsi filter Admin
+      // Bangun daftar agregat kelas untuk opsi filter Admin (Dikelompokkan unik per Operator agar tidak duplikat)
       const classMap = new Map<string, { operatorEmail: string; operatorName: string; classGroup?: string; count: number }>();
       validSessions.forEach((s) => {
         const emailKey = s.operatorEmail?.toLowerCase().trim();
-        const currentName = (emailKey && userMap.has(emailKey)) ? userMap.get(emailKey)! : s.operatorName;
-        const key = emailKey || currentName.toLowerCase();
+        const currentName = (emailKey && userMap.has(emailKey)) ? userMap.get(emailKey)! : (s.operatorName || 'Operator');
+        const groupKey = currentName.toLowerCase().trim();
 
-        if (!classMap.has(key)) {
-          classMap.set(key, {
+        if (!classMap.has(groupKey)) {
+          classMap.set(groupKey, {
             operatorEmail: s.operatorEmail || '',
             operatorName: currentName,
             classGroup: (s.classGroup && s.classGroup.toLowerCase() !== currentName.toLowerCase()) ? s.classGroup : undefined,
             count: 1
           });
         } else {
-          const item = classMap.get(key)!;
+          const item = classMap.get(groupKey)!;
           item.count += 1;
+          // Lengkapi email jika ada sesi yang menyimpan email valid
+          if (!item.operatorEmail && s.operatorEmail) {
+            item.operatorEmail = s.operatorEmail;
+          }
         }
       });
 
@@ -215,6 +219,39 @@ export async function POST(req: NextRequest) {
         { success: false, error: 'Gagal menulis data sesi ke server' },
         { status: 500 }
       );
+    }
+
+    // Sinkronkan lastLogin operator ke users.json
+    try {
+      if (session.operatorEmail || session.operatorName) {
+        const usersFilePath = path.join(DATA_DIR, 'users.json');
+        if (fs.existsSync(usersFilePath)) {
+          const uRaw = fs.readFileSync(usersFilePath, 'utf-8');
+          const uParsed = JSON.parse(uRaw);
+          if (uParsed && Array.isArray(uParsed.users)) {
+            const emailKey = (session.operatorEmail || '').toLowerCase().trim();
+            const nameKey = (session.operatorName || '').toLowerCase().trim();
+            let updatedAny = false;
+            const nowIso = session.startTimeMs ? new Date(session.startTimeMs).toISOString() : new Date().toISOString();
+
+            uParsed.users = uParsed.users.map((u: any) => {
+              const uEmail = (u.email || '').toLowerCase().trim();
+              const uName = (u.name || '').toLowerCase().trim();
+              if ((emailKey && uEmail === emailKey) || (nameKey && uName === nameKey)) {
+                updatedAny = true;
+                return { ...u, lastLogin: nowIso };
+              }
+              return u;
+            });
+
+            if (updatedAny) {
+              fs.writeFileSync(usersFilePath, JSON.stringify(uParsed, null, 2), 'utf-8');
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[Sessions API] Failed to update operator lastLogin in users.json:', e);
     }
 
     return NextResponse.json({

@@ -13,7 +13,7 @@ const DEFAULT_DATA: { users: UserItem[]; passwords: Record<string, string> } = {
   users: [
     {
       id: 'USR-01',
-      name: 'Admin Lab (Anugrah)',
+      name: 'Admin HE',
       email: 'anugrahtriplecycle@gmail.com',
       role: 'admin',
       status: 'Active',
@@ -32,6 +32,9 @@ const DEFAULT_DATA: { users: UserItem[]; passwords: Record<string, string> } = {
   ],
   passwords: {
     'anugrahtriplecycle@gmail.com': 'admin123',
+    'Admin HE': 'admin123',
+    'admin he': 'admin123',
+    '1': 'admin123',
     'admin@uad.ac.id': 'admin123',
     'admin.a@uad.ac.id': '1234.Admin',
     'Admin A': '1234.Admin'
@@ -180,86 +183,172 @@ async function purgeSupabaseUserSync(cleanEmail?: string | null, id?: string | n
   }
 }
 
+// Helper to get latest activity from sessions.json (strictly mapped by unique email)
+function getLatestSessionTimeByUser(): Map<string, string> {
+  const map = new Map<string, string>();
+  try {
+    const sessionsFile = path.join(DATA_DIR, 'sessions.json');
+    if (fs.existsSync(sessionsFile)) {
+      const raw = fs.readFileSync(sessionsFile, 'utf-8').replace(/^\uFEFF/, '').trim();
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.sessions)) {
+        for (const s of parsed.sessions) {
+          const email = (s.operatorEmail || '').toLowerCase().trim();
+          let timeIso = '';
+          if (s.startTimeMs) {
+            timeIso = new Date(s.startTimeMs).toISOString();
+          } else if (s.date) {
+            const timePart = s.startTime ? s.startTime.replace(/\./g, ':') : '00:00:00';
+            const dt = new Date(`${s.date}T${timePart}`);
+            if (!isNaN(dt.getTime())) timeIso = dt.toISOString();
+          }
+          if (timeIso && email) {
+            const prev = map.get(email);
+            if (!prev || new Date(timeIso).getTime() > new Date(prev).getTime()) {
+              map.set(email, timeIso);
+            }
+          }
+        }
+      }
+    }
+  } catch (e) { }
+  return map;
+}
+
 async function getMergedDatabase(): Promise<{ users: UserItem[]; passwords: Record<string, string> }> {
   const db = readDatabase();
   const syncItems = await fetchSupabaseUserSync();
-  if (syncItems.length === 0) return db;
 
   const users: UserItem[] = [...db.users];
   const passwords: Record<string, string> = { ...db.passwords };
 
-  for (const item of syncItems) {
-    if (!item) continue;
-    const action = item.action || 'create';
+  if (syncItems.length > 0) {
+    for (const item of syncItems) {
+      if (!item) continue;
+      const action = item.action || 'create';
 
-    if (action === 'create' || item.user) {
-      const u = item.user;
-      if (u && u.email) {
-        const cleanEmail = u.email.toLowerCase().trim();
-        const existingIdx = users.findIndex(x => x.email.toLowerCase() === cleanEmail || (u.id && x.id === u.id));
-        if (existingIdx >= 0) {
-          users[existingIdx] = { ...users[existingIdx], ...u };
-        } else {
-          users.push(u);
-        }
-        if (item.password) {
-          passwords[cleanEmail] = item.password;
-          if (u.name) {
-            passwords[u.name] = item.password;
-            passwords[u.name.toLowerCase()] = item.password;
+      if (action === 'create' || item.user) {
+        const u = item.user;
+        if (u && u.email) {
+          const cleanEmail = u.email.toLowerCase().trim();
+          // Abaikan sync lama dari email yang sudah diganti
+          if (cleanEmail === '2407054004@webmail.uad.ac.id') continue;
+
+          const existingIdx = users.findIndex(x => x.email.toLowerCase() === cleanEmail);
+          if (existingIdx >= 0) {
+            // JANGAN timpa lastLogin yang sudah valid dengan 'Belum Pernah' dari sync awal
+            const existingLastLogin = users[existingIdx].lastLogin;
+            const incomingLastLogin = u.lastLogin;
+            const finalLastLogin = (incomingLastLogin && incomingLastLogin !== 'Belum Pernah')
+              ? incomingLastLogin
+              : (existingLastLogin && existingLastLogin !== 'Belum Pernah')
+                ? existingLastLogin
+                : 'Belum Pernah';
+
+            const existingLastSeen = users[existingIdx].lastSeen || 0;
+            const incomingLastSeen = u.lastSeen || 0;
+
+            users[existingIdx] = {
+              ...users[existingIdx],
+              ...u,
+              lastLogin: finalLastLogin,
+              lastSeen: Math.max(existingLastSeen, incomingLastSeen)
+            };
+          } else {
+            users.push(u);
+          }
+          if (item.password) {
+            passwords[cleanEmail] = item.password;
+            if (u.name) {
+              passwords[u.name] = item.password;
+              passwords[u.name.toLowerCase()] = item.password;
+            }
           }
         }
-      }
-    } else if (action === 'update' && item.update) {
-      const { email, id, newPassword, newRole, name, status, lastLogin, isScheduleRestricted, allowedStartDate, allowedEndDate, allowedStartTime, allowedEndTime, allowedDays } = item.update;
-      const targetUser = users.find(x => {
-        if (id && x.id === id) return true;
-        if (email && x.email.toLowerCase() === email.toLowerCase().trim()) return true;
-        return false;
-      });
-      if (targetUser) {
-        if (name) targetUser.name = name.trim();
-        if (newRole) targetUser.role = newRole;
-        if (typeof isScheduleRestricted === 'boolean') targetUser.isScheduleRestricted = isScheduleRestricted;
-        if (allowedStartDate !== undefined) targetUser.allowedStartDate = allowedStartDate;
-        if (allowedEndDate !== undefined) targetUser.allowedEndDate = allowedEndDate;
-        if (allowedStartTime !== undefined) targetUser.allowedStartTime = allowedStartTime;
-        if (allowedEndTime !== undefined) targetUser.allowedEndTime = allowedEndTime;
-        if (Array.isArray(allowedDays)) targetUser.allowedDays = allowedDays;
-        if (status) targetUser.status = status;
-        if (lastLogin) targetUser.lastLogin = lastLogin;
-      }
-      if (email && newPassword) {
-        const cleanEmail = email.toLowerCase().trim();
-        passwords[cleanEmail] = newPassword;
-        if (targetUser?.name) {
-          passwords[targetUser.name] = newPassword;
-          passwords[targetUser.name.toLowerCase()] = newPassword;
+      } else if (action === 'update' && item.update) {
+        const { email, id, newPassword, newRole, name, status, lastLogin, isScheduleRestricted, allowedStartDate, allowedEndDate, allowedStartTime, allowedEndTime, allowedDays, lastSeen } = item.update;
+        const targetUser = users.find(x => {
+          if (id && x.id === id) return true;
+          if (email && x.email.toLowerCase() === email.toLowerCase().trim()) return true;
+          return false;
+        });
+        if (targetUser) {
+          if (name) targetUser.name = name.trim();
+          if (newRole) targetUser.role = newRole;
+          if (typeof isScheduleRestricted === 'boolean') targetUser.isScheduleRestricted = isScheduleRestricted;
+          if (allowedStartDate !== undefined) targetUser.allowedStartDate = allowedStartDate;
+          if (allowedEndDate !== undefined) targetUser.allowedEndDate = allowedEndDate;
+          if (allowedStartTime !== undefined) targetUser.allowedStartTime = allowedStartTime;
+          if (allowedEndTime !== undefined) targetUser.allowedEndTime = allowedEndTime;
+          if (Array.isArray(allowedDays)) targetUser.allowedDays = allowedDays;
+          if (status) targetUser.status = status;
+          if (lastLogin && lastLogin !== 'Belum Pernah') {
+            targetUser.lastLogin = lastLogin;
+          }
+          if (lastSeen !== undefined) {
+            targetUser.lastSeen = Math.max(targetUser.lastSeen || 0, lastSeen);
+          }
+        }
+        if (email && newPassword) {
+          const cleanEmail = email.toLowerCase().trim();
+          passwords[cleanEmail] = newPassword;
+          if (targetUser?.name) {
+            passwords[targetUser.name] = newPassword;
+            passwords[targetUser.name.toLowerCase()] = newPassword;
+          }
+        }
+      } else if (action === 'delete') {
+        const { id, email } = item;
+        const cleanEmail = email ? email.toLowerCase().trim() : null;
+        const target = users.find(u => (cleanEmail && u.email.toLowerCase() === cleanEmail) || (id && u.id === id));
+        const filtered = users.filter(u => {
+          if (cleanEmail && u.email.toLowerCase() === cleanEmail) return false;
+          if (!cleanEmail && id && u.id === id) return false;
+          return true;
+        });
+        users.length = 0;
+        users.push(...filtered);
+        if (cleanEmail) {
+          delete passwords[cleanEmail];
+          delete passwords[cleanEmail.toLowerCase()];
+        }
+        if (target?.email) {
+          delete passwords[target.email.toLowerCase().trim()];
+        }
+        if (target?.name) {
+          delete passwords[target.name];
+          delete passwords[target.name.toLowerCase()];
         }
       }
-    } else if (action === 'delete') {
-      const { id, email } = item;
-      const cleanEmail = email ? email.toLowerCase().trim() : null;
-      const target = users.find(u => (cleanEmail && u.email.toLowerCase() === cleanEmail) || (id && u.id === id));
-      const filtered = users.filter(u => {
-        if (cleanEmail && u.email.toLowerCase() === cleanEmail) return false;
-        if (!cleanEmail && id && u.id === id) return false;
-        return true;
-      });
-      users.length = 0;
-      users.push(...filtered);
-      if (cleanEmail) {
-        delete passwords[cleanEmail];
-        delete passwords[cleanEmail.toLowerCase()];
-      }
-      if (target?.email) {
-        delete passwords[target.email.toLowerCase().trim()];
-      }
-      if (target?.name) {
-        delete passwords[target.name];
-        delete passwords[target.name.toLowerCase()];
+    }
+  }
+
+  // Cross-reference dengan riwayat sesi praktikum (Sessions Database)
+  // Menjamin jika pengguna pernah menjalankan sesi praktikum, riwayat login terakhir otomatis terisi akurat
+  const sessionMap = getLatestSessionTimeByUser();
+  let hasSessionSyncUpdate = false;
+  for (const u of users) {
+    const emailKey = u.email ? u.email.toLowerCase().trim() : '';
+    // HANYA cocokkan berdasarkan email unik eksak
+    const sessionTime = emailKey ? sessionMap.get(emailKey) : null;
+
+    if (sessionTime) {
+      if (!u.lastLogin || u.lastLogin === 'Belum Pernah') {
+        u.lastLogin = sessionTime;
+        hasSessionSyncUpdate = true;
+      } else {
+        const dCurrent = new Date(u.lastLogin).getTime();
+        const dSession = new Date(sessionTime).getTime();
+        if (!isNaN(dSession) && (isNaN(dCurrent) || dSession > dCurrent)) {
+          u.lastLogin = sessionTime;
+          hasSessionSyncUpdate = true;
+        }
       }
     }
+  }
+
+  if (hasSessionSyncUpdate) {
+    writeDatabase({ users, passwords });
   }
 
   return { users, passwords };
@@ -291,10 +380,17 @@ export async function POST(req: Request) {
     }
 
     const cleanEmail = email.toLowerCase().trim();
+    const cleanName = name.trim().toLowerCase();
     const db = await getMergedDatabase();
 
-    if (db.users.some((u: UserItem) => u.email.toLowerCase() === cleanEmail)) {
-      return NextResponse.json({ success: false, error: `Email ${cleanEmail} sudah terdaftar!` }, { status: 400 });
+    // STRICT ATURAN: Email yang sudah terdaftar tidak bisa didaftarkan kembali!
+    if (db.users.some((u: UserItem) => u.email.toLowerCase().trim() === cleanEmail)) {
+      return NextResponse.json({ success: false, error: `Email "${cleanEmail}" sudah terdaftar di sistem! Tidak bisa didaftarkan kembali.` }, { status: 400 });
+    }
+
+    // STRICT ATURAN: Nama pengguna yang sudah ada juga dicegah agar tidak ada duplikasi akun
+    if (db.users.some((u: UserItem) => u.name.trim().toLowerCase() === cleanName)) {
+      return NextResponse.json({ success: false, error: `Nama pengguna "${name.trim()}" sudah terdaftar di sistem! Silakan gunakan nama yang berbeda.` }, { status: 400 });
     }
 
     // Generate guaranteed unique ID
@@ -384,7 +480,7 @@ export async function PATCH(req: Request) {
       if (allowedEndTime !== undefined) targetUser.allowedEndTime = allowedEndTime;
       if (Array.isArray(allowedDays)) targetUser.allowedDays = allowedDays;
       if (status) targetUser.status = status;
-      if (lastLogin) targetUser.lastLogin = lastLogin;
+      if (lastLogin && lastLogin !== 'Belum Pernah') targetUser.lastLogin = lastLogin;
       if (lastSeen !== undefined) targetUser.lastSeen = lastSeen;
     }
 
@@ -399,9 +495,9 @@ export async function PATCH(req: Request) {
 
     writeDatabase(db);
 
-    // Only push to Supabase if it's a persistent credential / profile / permission update (skip raw heartbeat lastSeen)
-    if (newPassword || newRole || name || status || isScheduleRestricted !== undefined || allowedStartDate !== undefined || allowedEndDate !== undefined) {
-      await pushSupabaseUserSync({ action: 'update', update: body });
+    // Push to Supabase if it's a persistent credential / profile / permission / login update (skip raw heartbeat lastSeen)
+    if (newPassword || newRole || name || status || (lastLogin && lastLogin !== 'Belum Pernah') || isScheduleRestricted !== undefined || allowedStartDate !== undefined || allowedEndDate !== undefined) {
+      await pushSupabaseUserSync({ action: 'update', update: { ...body, lastLogin: targetUser?.lastLogin || lastLogin } });
     }
 
     const now = Date.now();

@@ -103,6 +103,19 @@ export const UserManager: React.FC<UserManagerProps> = ({
   const [copiedPassword, setCopiedPassword] = React.useState<boolean>(false);
   const [editError, setEditError] = React.useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = React.useState<boolean>(false);
+
+  // Validasi real-time agar email dan nama yang sudah terdaftar tidak bisa didaftarkan kembali
+  const isEmailDuplicate = React.useMemo(() => {
+    const clean = newUserEmail.toLowerCase().trim();
+    if (!clean) return false;
+    return usersList.some((u) => u.email.toLowerCase().trim() === clean);
+  }, [newUserEmail, usersList]);
+
+  const isNameDuplicate = React.useMemo(() => {
+    const clean = newUserName.toLowerCase().trim();
+    if (!clean) return false;
+    return usersList.some((u) => u.name.toLowerCase().trim() === clean);
+  }, [newUserName, usersList]);
   return (
     <div id="tour-user-manager" className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -210,21 +223,49 @@ export const UserManager: React.FC<UserManagerProps> = ({
                       </span>
                     )}
                   </td>
-                  <td className="p-3 text-slate-500">{formatLastLogin(u.lastLogin)}</td>
+                  <td className="p-3">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-slate-700 font-semibold text-xs">
+                        {formatLastLogin(u.lastLogin)}
+                      </span>
+                      {isOnline && (
+                        <span className="inline-flex items-center gap-1 font-bold text-emerald-600 text-[10px]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Sedang Aktif Sekarang
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="p-3 text-center">
                     <div className="flex items-center justify-center gap-1.5">
 
-                      {u.role !== 'operator' ? (
-                        <button
-                          onClick={() => onOpenResetPasswordModal(u.email)}
-                          className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-sky-600 rounded-lg hover:bg-slate-100 transition cursor-pointer shrink-0"
-                          title="Reset / Ganti Kata Sandi (Verifikasi OTP)"
-                        >
-                          <Key className="w-3.5 h-3.5" />
-                        </button>
-                      ) : (
-                        <div className="w-7 h-7 shrink-0 pointer-events-none" />
-                      )}
+                      {(() => {
+                        const isSelf = Boolean(
+                          currentUser?.email &&
+                          u.email &&
+                          currentUser.email.toLowerCase().trim() === u.email.toLowerCase().trim()
+                        );
+                        if (isSelf) {
+                          return (
+                            <button
+                              onClick={() => onOpenResetPasswordModal(u.email)}
+                              className="w-7 h-7 flex items-center justify-center text-sky-600 bg-sky-50 hover:bg-sky-100 border border-sky-200/80 rounded-lg transition cursor-pointer shrink-0 shadow-xs"
+                              title="Ganti Kata Sandi Akun Anda (Verifikasi OTP)"
+                            >
+                              <Key className="w-3.5 h-3.5" />
+                            </button>
+                          );
+                        } else {
+                          return (
+                            <div
+                              className="w-7 h-7 flex items-center justify-center text-slate-300 rounded-lg cursor-not-allowed shrink-0 select-none"
+                              title="Ganti kata sandi hanya bisa dilakukan oleh pemilik akun sendiri"
+                            >
+                              <Key className="w-3.5 h-3.5 opacity-25" />
+                            </div>
+                          );
+                        }
+                      })()}
                       <button
                         onClick={() => {
                           const today = new Date().toISOString().slice(0, 10);
@@ -418,8 +459,14 @@ export const UserManager: React.FC<UserManagerProps> = ({
                     value={newUserName}
                     onChange={(e) => setNewUserName(e.target.value)}
                     placeholder="Nama Lengkap"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 text-slate-800"
+                    className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 text-slate-800 ${isNameDuplicate ? 'border-amber-400 focus:border-amber-500' : 'border-slate-200 focus:border-sky-500'}`}
                   />
+                  {isNameDuplicate && (
+                    <p className="text-[11px] text-amber-600 font-semibold mt-1 flex items-center gap-1 animate-in fade-in">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-500" />
+                      Nama ini sudah terdaftar. Disarankan gunakan nama pembeda.
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -431,10 +478,16 @@ export const UserManager: React.FC<UserManagerProps> = ({
                       value={newUserEmail}
                       onChange={(e) => setNewUserEmail(e.target.value)}
                       placeholder="user@gmail.com"
-                      className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 text-slate-800"
+                      className={`w-full pl-9 pr-4 py-2.5 bg-slate-50 border rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 text-slate-800 ${isEmailDuplicate ? 'border-rose-400 focus:border-rose-500 bg-rose-50/30' : 'border-slate-200 focus:border-sky-500'}`}
                     />
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   </div>
+                  {isEmailDuplicate && (
+                    <p className="text-[11px] text-rose-600 font-bold mt-1.5 flex items-center gap-1.5 animate-in fade-in">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+                      Email ini sudah terdaftar di sistem! Tidak bisa didaftarkan kembali.
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -444,8 +497,8 @@ export const UserManager: React.FC<UserManagerProps> = ({
                     onChange={(e) => setNewUserRole(e.target.value as UserRole)}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
                   >
-                    <option value="operator">Operator (Mahasiswa Praktikum)</option>
-                    <option value="admin">Admin (Dosen / KaLab)</option>
+                    <option value="operator">Operator</option>
+                    <option value="admin">Admin</option>
                   </select>
                 </div>
 
@@ -466,8 +519,8 @@ export const UserManager: React.FC<UserManagerProps> = ({
                   </button>
                   <button
                     type="submit"
-                    disabled={isAddingUser}
-                    className="w-2/3 py-2.5 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white text-xs font-extrabold rounded-xl shadow-md shadow-sky-600/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    disabled={isAddingUser || isEmailDuplicate || !newUserName.trim() || !newUserEmail.trim()}
+                    className="w-2/3 py-2.5 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white text-xs font-extrabold rounded-xl shadow-md shadow-sky-600/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isAddingUser ? (
                       <>

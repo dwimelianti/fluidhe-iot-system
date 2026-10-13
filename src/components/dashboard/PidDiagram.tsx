@@ -55,6 +55,7 @@ interface PidDiagramProps {
   deltaPHot: number;
   onHoverSensor?: (sensorId: string | null) => void;
   isHardwareOnline?: boolean;
+  isAdmin?: boolean;
 }
 
 export const PidDiagram: React.FC<PidDiagramProps> = ({
@@ -71,7 +72,8 @@ export const PidDiagram: React.FC<PidDiagramProps> = ({
   dualHeaterState,
   deltaPHot,
   onHoverSensor,
-  isHardwareOnline = false
+  isHardwareOnline = false,
+  isAdmin = false
 }) => {
   const [hoveredComponent, setHoveredComponent] = useState<string | null>(null);
   const [showLegend, setShowLegend] = useState<boolean>(false);
@@ -79,15 +81,13 @@ export const PidDiagram: React.FC<PidDiagramProps> = ({
   const isCounter = diagramMode === 'Counter-Current';
 
   // 4 Thermostats (Suhu T1 - T4)
-  // Air Dingin: Selalu T3 = Inlet, T2 = Outlet
-  const tci = Number(latestData.ti3 || 0); // Cold In
-  const tco = Number(latestData.ti2 || 0); // Cold Out
+  // Fluida Panas: T1 = Hot In, T2 = Hot Out
+  const thi = Number(latestData.ti1 || 0); // Hot In
+  const tho = Number(latestData.ti2 || 0); // Hot Out
 
-  // Air Panas:
-  // Counter: T1 = Hot In, T4 = Hot Out
-  // Co-Current: T4 = Hot In, T1 = Hot Out
-  const thi = isCounter ? Number(latestData.ti1 || 0) : Number(latestData.ti4 || 0);
-  const tho = isCounter ? Number(latestData.ti4 || 0) : Number(latestData.ti1 || 0);
+  // Fluida Dingin: T3 = Cold In, T4 = Cold Out
+  const tci = Number(latestData.ti3 || 0); // Cold In
+  const tco = Number(latestData.ti4 || 0); // Cold Out
 
   // 4 Pressure Sensors (Tekanan P1 - P4)
   const pi1Val = Number(latestData.pi1 || 0).toFixed(2);
@@ -101,9 +101,9 @@ export const PidDiagram: React.FC<PidDiagramProps> = ({
 
   // Formatted String Display (Mencegah tampilan nilai fiktif/basi saat ESP32 Offline)
   const thiStr = isHardwareOnline ? `${thi}°C` : '--';
-  const tcoStr = isHardwareOnline ? `${tco}°C` : '--';
+  const thoStr = isHardwareOnline ? `${tho}°C` : '--';
   const tciStr = isHardwareOnline ? `${tci}°C` : '--';
-  const t4Str = isHardwareOnline ? `${Number(latestData.ti4 || 0).toFixed(1)}°C` : '--';
+  const tcoStr = isHardwareOnline ? `${tco}°C` : '--';
   const pi1Str = isHardwareOnline ? `${pi1Val} atm` : '--';
   const pi2Str = isHardwareOnline ? `${pi2Val} atm` : '--';
   const pi3Str = isHardwareOnline ? `${pi3Val} atm` : '--';
@@ -679,22 +679,22 @@ export const PidDiagram: React.FC<PidDiagramProps> = ({
               9. SENSOR KELUARAN DINGIN: Pr (Preasure) & Tr (Termostar) DI BAWAH JALUR BIRU
                  Terletak di atas nozzle/shell, di bawah pipa biru
           ═══════════════════════════════════════════════════════════════════════════ */}
-          <g className="cursor-pointer" onMouseEnter={() => handleHover('PORT_P2_T2')} onMouseLeave={() => handleHover(null)}>
+          <g className="cursor-pointer" onMouseEnter={() => handleHover('PORT_P4_T4')} onMouseLeave={() => handleHover(null)}>
             {/* Leader Lines dari Pipa Nozzle Atas (x=315, y=222) */}
             <line x1="315" y1="222" x2="315" y2="213" stroke="#94A3B8" strokeWidth="1.5" />
             <line x1="306" y1="213" x2="375" y2="213" stroke="#94A3B8" strokeWidth="1.5" />
             <circle cx="315" cy="222" r="2.5" fill="#64748B" />
 
-            {/* P2 (Pressure Nozzle) — 2D Pill style */}
+            {/* P4 (Cold Outlet Pressure Nozzle) — 2D Pill style */}
             <rect x="278" y="197" width="56" height="16" rx="8" fill="#FFFFFF" stroke="#E2E8F0" strokeWidth="1.5" filter="url(#softShadow)" />
             <circle cx="288" cy="205" r="10" fill="#0EA5E9" />
-            <text x="288" y="207.5" textAnchor="middle" className="text-[7px] font-bold fill-white">P2</text>
-            <text x="313" y="207" textAnchor="middle" className="text-[6.5px] font-bold fill-slate-700">{pi2Str}</text>
+            <text x="288" y="207.5" textAnchor="middle" className="text-[7px] font-bold fill-white">P4</text>
+            <text x="313" y="207" textAnchor="middle" className="text-[6.5px] font-bold fill-slate-700">{pi4Str}</text>
 
-            {/* T2 (Termostat Nozzle) — 2D Pill style */}
+            {/* T4 (Cold Outlet Termostat Nozzle) — 2D Pill style */}
             <rect x="348" y="197" width="54" height="16" rx="8" fill="#FFFFFF" stroke="#E2E8F0" strokeWidth="1.5" filter="url(#softShadow)" />
             <circle cx="358" cy="205" r="10" fill="#0284C7" />
-            <text x="358" y="207.5" textAnchor="middle" className="text-[7px] font-bold fill-white">T2</text>
+            <text x="358" y="207.5" textAnchor="middle" className="text-[7px] font-bold fill-white">T4</text>
             <text x="381" y="207" textAnchor="middle" className="text-[6.5px] font-bold fill-slate-700">{tcoStr}</text>
           </g>
 
@@ -785,24 +785,24 @@ export const PidDiagram: React.FC<PidDiagramProps> = ({
           {/* Pipa Biru Horizontal Outlet Header kanan melalui P4, T4, dan VL (Mulai Rapi di Batas Luar Kubah Tanpa Offside) */}
           <line x1="792" y1="310" x2="940" y2="310" stroke="#0284C7" strokeWidth="4" strokeLinecap="butt" />
 
-          {/* Presur P4 — Di bawah pipa biru sesuai Gambar 1 */}
-          <g className="cursor-pointer" onMouseEnter={() => handleHover('P4')} onMouseLeave={() => handleHover(null)}>
+          {/* Presur P2 (Outlet Panas) — Di bawah pipa biru */}
+          <g className="cursor-pointer" onMouseEnter={() => handleHover('P2')} onMouseLeave={() => handleHover(null)}>
             <line x1="806" y1="310" x2="806" y2="335" stroke="#94A3B8" strokeWidth="1.5" />
             <circle cx="806" cy="310" r="2" fill="#94A3B8" />
             <rect x="786" y="335" width="40" height="16" rx="8" fill="#FFFFFF" stroke="#E2E8F0" strokeWidth="1.5" filter="url(#softShadow)" />
             <circle cx="806" cy="343" r="10" fill="#0EA5E9" />
-            <text x="806" y="345.5" textAnchor="middle" className="text-[7px] font-bold fill-white">P4</text>
-            <text x="806" y="360" textAnchor="middle" className="text-[6.5px] font-bold fill-slate-700">{pi4Str}</text>
+            <text x="806" y="345.5" textAnchor="middle" className="text-[7px] font-bold fill-white">P2</text>
+            <text x="806" y="360" textAnchor="middle" className="text-[6.5px] font-bold fill-slate-700">{pi2Str}</text>
           </g>
 
-          {/* Tr T4 — Di atas pipa hijau dengan garis penunjuk menembus ke pipa biru sesuai Gambar 1 */}
-          <g className="cursor-pointer" onMouseEnter={() => handleHover('T4')} onMouseLeave={() => handleHover(null)}>
+          {/* Tr T2 (Outlet Panas) — Di atas pipa hijau dengan garis penunjuk menembus ke pipa biru */}
+          <g className="cursor-pointer" onMouseEnter={() => handleHover('T2')} onMouseLeave={() => handleHover(null)}>
             <line x1="830" y1="255" x2="830" y2="310" stroke="#94A3B8" strokeWidth="1.5" />
             <circle cx="830" cy="310" r="2" fill="#94A3B8" />
             <rect x="810" y="239" width="40" height="16" rx="8" fill="#FFFFFF" stroke="#E2E8F0" strokeWidth="1.5" filter="url(#softShadow)" />
             <circle cx="830" cy="247" r="10" fill="#EF4444" />
-            <text x="830" y="249.5" textAnchor="middle" className="text-[7px] font-bold fill-white">T4</text>
-            <text x="830" y="233" textAnchor="middle" className="text-[6.5px] font-bold fill-slate-700">{t4Str}</text>
+            <text x="830" y="249.5" textAnchor="middle" className="text-[7px] font-bold fill-white">T2</text>
+            <text x="830" y="233" textAnchor="middle" className="text-[6.5px] font-bold fill-slate-700">{thoStr}</text>
           </g>
 
           {/* VL Kanan — Katup VL di titik x=860 sesuai Gambar 1 */}
@@ -1007,12 +1007,12 @@ export const PidDiagram: React.FC<PidDiagramProps> = ({
         <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 px-0.5">
           <span className="text-[11px] font-extrabold text-slate-800 flex items-center gap-1.5">
             <Activity className="w-3.5 h-3.5 text-sky-600" />
-            Kinerja Perpindahan Kalor & LMTD
+            {isAdmin ? 'Kinerja Perpindahan Kalor & LMTD' : 'Kinerja Perpindahan Kalor (ΔT)'}
           </span>
           <span className="text-[9.5px] font-bold text-slate-400">Parameter Efisiensi Termal</span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs pt-0.5">
+        <div className={`grid gap-2 text-xs pt-0.5 ${isAdmin ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1 sm:grid-cols-3'}`}>
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-sky-50 text-sky-700 border border-sky-200 shrink-0">
               <Flame className="w-3.5 h-3.5" />
@@ -1037,17 +1037,19 @@ export const PidDiagram: React.FC<PidDiagramProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
-              <Thermometer className="w-3.5 h-3.5" />
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
+                <Thermometer className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <span className="text-[9.5px] font-bold text-slate-500 block">LMTD ({diagramMode}):</span>
+                <strong className="text-slate-800 font-black text-xs sm:text-sm">
+                  {isHardwareOnline ? `${lmtdVal.toFixed(2)} °C` : '--'}
+                </strong>
+              </div>
             </div>
-            <div>
-              <span className="text-[9.5px] font-bold text-slate-500 block">LMTD ({diagramMode}):</span>
-              <strong className="text-slate-800 font-black text-xs sm:text-sm">
-                {isHardwareOnline ? `${lmtdVal.toFixed(2)} °C` : '--'}
-              </strong>
-            </div>
-          </div>
+          )}
 
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">

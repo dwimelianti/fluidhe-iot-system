@@ -17,6 +17,7 @@ import {
 import { SystemOperationalStatus, SystemSession, TelemetryPoint } from '@/types';
 import { ExportButtons } from './ExportButtons';
 import { DataTable } from './DataTable';
+import { isSessionInDateFilter } from '@/lib/dateFormatter';
 
 export interface ClassSummaryItem {
   operatorEmail: string;
@@ -27,8 +28,8 @@ export interface ClassSummaryItem {
 
 export interface LogsTabProps {
   filteredLogsData: TelemetryPoint[];
-  logInterval: '1s' | '2s' | '5s' | '30s' | '1m';
-  setLogInterval: (interval: '1s' | '2s' | '5s' | '30s' | '1m') => void;
+  logInterval: '1s' | '2s' | '5s' | '30s' | '1m' | '5m';
+  setLogInterval: (interval: '1s' | '2s' | '5s' | '30s' | '1m' | '5m') => void;
   dateFilter: string;
   setDateFilter: (filter: string) => void;
   logSearchQuery: string;
@@ -51,6 +52,9 @@ export interface LogsTabProps {
   setClassFilter?: (filter: string) => void;
   classesList?: ClassSummaryItem[];
   onClearActiveSession?: () => void;
+  // Steady State Thermostat Props
+  targetTempHot?: number;
+  toleranceLevel?: number;
 }
 
 export const LogsTab: React.FC<LogsTabProps> = ({
@@ -76,26 +80,41 @@ export const LogsTab: React.FC<LogsTabProps> = ({
   classFilter = 'ALL',
   setClassFilter,
   classesList = [],
-  onClearActiveSession
+  onClearActiveSession,
+  targetTempHot = 50.0,
+  toleranceLevel = 1
 }) => {
   const isAdmin = currentUser?.role === 'admin';
 
-  // Filter archived sessions based on classFilter for Admin
+  // Acuan evaluasi Steady State (Set Point & Toleransi P dari Thermostat)
+  const steadyLower = targetTempHot - toleranceLevel;
+  const steadyUpper = targetTempHot + toleranceLevel;
+
+  const steadyCount = useMemo(() => {
+    return filteredLogsData.filter(
+      (d) => (d.ti1 !== undefined && d.ti1 !== null) && d.ti1 >= steadyLower && d.ti1 <= steadyUpper
+    ).length;
+  }, [filteredLogsData, steadyLower, steadyUpper]);
+
+  // Filter archived sessions based on classFilter for Admin & dateFilter
   const visibleArchivedSessions = useMemo(() => {
     let list = archivedSessions;
     if (currentSession) {
       list = list.filter((s) => s.id !== currentSession.id);
     }
-    if (!isAdmin || classFilter === 'ALL') {
-      return list;
+    if (isAdmin && classFilter !== 'ALL') {
+      list = list.filter(
+        (s) =>
+          (s.operatorEmail && s.operatorEmail.toLowerCase() === classFilter.toLowerCase()) ||
+          (s.classGroup && s.classGroup.toLowerCase() === classFilter.toLowerCase()) ||
+          (s.operatorName && s.operatorName.toLowerCase() === classFilter.toLowerCase())
+      );
     }
-    return list.filter(
-      (s) =>
-        (s.operatorEmail && s.operatorEmail.toLowerCase() === classFilter.toLowerCase()) ||
-        (s.classGroup && s.classGroup.toLowerCase() === classFilter.toLowerCase()) ||
-        (s.operatorName && s.operatorName.toLowerCase() === classFilter.toLowerCase())
-    );
-  }, [isAdmin, classFilter, archivedSessions, currentSession]);
+    if (dateFilter && dateFilter !== 'All') {
+      list = list.filter((s) => isSessionInDateFilter(s.date, dateFilter));
+    }
+    return list;
+  }, [isAdmin, classFilter, archivedSessions, currentSession, dateFilter]);
 
   // Deduplikasi total sesi unik
   const totalUniqueSessionsCount = useMemo(() => {
@@ -121,10 +140,21 @@ export const LogsTab: React.FC<LogsTabProps> = ({
 
   // Selected session object for banner detail
   const activeSessionObj = useMemo(() => {
+    if (selectedSessionId === 'ALL') {
+      return {
+        id: 'ALL',
+        title: dateFilter === '7Days' ? 'Akumulasi Data 7 Hari Terakhir (Termasuk 08-10-2026)' : dateFilter === 'Today' ? 'Akumulasi Data Hari Ini' : 'Akumulasi Semua Riwayat Praktikum',
+        date: dateFilter === '7Days' ? '7 Hari Terakhir' : dateFilter === 'Today' ? 'Hari Ini' : 'Semua Tanggal Arsip',
+        operatorName: classFilter !== 'ALL' ? classFilter : (currentUser?.name || 'Seluruh Sesi Praktikum'),
+        classGroup: 'Semua Praktikum Terdata',
+        pointsCount: totalTelemetryCount,
+        data: []
+      } as any;
+    }
     const isCurrentSelected = selectedSessionId === 'CURRENT' || (currentSession && selectedSessionId === currentSession.id);
     if (isCurrentSelected) return currentSession;
     return archivedSessions.find((s) => s.id === selectedSessionId) || null;
-  }, [selectedSessionId, currentSession, archivedSessions]);
+  }, [selectedSessionId, currentSession, archivedSessions, dateFilter, classFilter, currentUser, totalTelemetryCount]);
 
   return (
     <div className="space-y-6">
@@ -236,7 +266,12 @@ export const LogsTab: React.FC<LogsTabProps> = ({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              {(selectedSessionId === 'CURRENT' || (currentSession && selectedSessionId === currentSession.id)) && currentSession ? (
+              {selectedSessionId === 'ALL' ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-extrabold bg-sky-100 text-sky-800 border border-sky-300">
+                  <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
+                  Mode Akumulasi: {dateFilter === '7Days' ? '7 Hari Terakhir' : dateFilter === 'Today' ? 'Hari Ini' : 'Semua Arsip'}
+                </span>
+              ) : (selectedSessionId === 'CURRENT' || (currentSession && selectedSessionId === currentSession.id)) && currentSession ? (
                 <>
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
@@ -293,7 +328,7 @@ export const LogsTab: React.FC<LogsTabProps> = ({
           {isAdmin && setClassFilter && (
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                <Users className="w-3.5 h-3.5 text-sky-600" /> Filter Kelas / Operator
+                <Users className="w-3.5 h-3.5 text-sky-600" /> Filter Operator / User
               </label>
               <select
                 value={classFilter}
@@ -317,35 +352,38 @@ export const LogsTab: React.FC<LogsTabProps> = ({
                 }}
                 className="w-full px-3 py-1.5 bg-sky-50/50 border border-sky-200 rounded-xl text-xs text-sky-950 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
               >
-                <option value="ALL">Semua Kelas & Operator ({archivedSessions.length} sesi)</option>
+                <option value="ALL">Semua Operator / User ({archivedSessions.length} sesi)</option>
                 {classesList.map((c) => (
                   <option key={c.operatorEmail || c.operatorName} value={c.operatorEmail || c.operatorName}>
-                    {c.operatorName}{c.classGroup && c.classGroup !== c.operatorName ? ` (${c.classGroup})` : ''} - {c.count} sesi
+                    {c.operatorName} ({c.count} sesi)
                   </option>
                 ))}
               </select>
             </div>
           )}
 
-          {/* Session Selector (Anti Data Tercampur) */}
+          {/* Session Selector (Anti Data Tercampur & Akumulasi) */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
               <Layers className="w-3.5 h-3.5 text-sky-600" />
               Pilih Sesi Praktikum
             </label>
             <select
-              value={(currentSession && selectedSessionId === currentSession.id) ? 'CURRENT' : selectedSessionId}
+              value={selectedSessionId}
               onChange={(e) => setSelectedSessionId?.(e.target.value)}
               className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
             >
-              {currentSession && (classFilter === 'ALL' || (currentSession.operatorEmail && currentSession.operatorEmail.toLowerCase() === classFilter.toLowerCase()) || (currentSession.operatorName && currentSession.operatorName.toLowerCase() === classFilter.toLowerCase())) && (
+              <option value="ALL">
+                Semua Sesi Praktikum ({dateFilter === '7Days' ? '7 Hari Terakhir' : dateFilter === 'Today' ? 'Hari Ini' : 'Semua Tanggal'})
+              </option>
+              {currentSession && isSessionInDateFilter(currentSession.date, dateFilter) && (classFilter === 'ALL' || (currentSession.operatorEmail && currentSession.operatorEmail.toLowerCase() === classFilter.toLowerCase()) || (currentSession.operatorName && currentSession.operatorName.toLowerCase() === classFilter.toLowerCase())) && (
                 <option value="CURRENT">
                   🟢 Sesi Aktif ({currentSession.date}) {isAdmin ? `[${currentSession.operatorName}]` : ''}
                 </option>
               )}
               {visibleArchivedSessions.map((s, idx) => (
                 <option key={s.id} value={s.id}>
-                  📁 {isAdmin ? `[${s.operatorName}] ` : ''}Sesi #{visibleArchivedSessions.length - idx}: {s.date}
+                  📁 {isAdmin ? `[${s.operatorName}] ` : ''}Sesi #{visibleArchivedSessions.length - idx}: {s.date} ({s.startTime || '-'})
                 </option>
               ))}
               {!currentSession && visibleArchivedSessions.length === 0 && (
@@ -372,14 +410,15 @@ export const LogsTab: React.FC<LogsTabProps> = ({
             <label className="block text-xs font-semibold text-slate-700 mb-1">Interval Sampling</label>
             <select
               value={logInterval}
-              onChange={(e) => setLogInterval(e.target.value as '1s' | '2s' | '5s' | '30s' | '1m')}
+              onChange={(e) => setLogInterval(e.target.value as '1s' | '2s' | '5s' | '30s' | '1m' | '5m')}
               className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-bold focus:outline-none cursor-pointer"
             >
-              <option value="1s">1 Detik (High Frequency)</option>
-              <option value="2s">2 Detik (Rekomendasi Praktikum)</option>
-              <option value="5s">5 Detik (Default Realtime)</option>
-              <option value="30s">30 Detik (Interval Sedang)</option>
-              <option value="1m">1 Menit (Ringkasan Lab)</option>
+              <option value="1s">1 Detik</option>
+              <option value="2s">2 Detik</option>
+              <option value="5s">5 Detik</option>
+              <option value="30s">30 Detik</option>
+              <option value="1m">1 Menit</option>
+              <option value="5m">5 Menit</option>
             </select>
           </div>
 
@@ -387,8 +426,16 @@ export const LogsTab: React.FC<LogsTabProps> = ({
             <label className="block text-xs font-semibold text-slate-700 mb-1">Rentang Tanggal</label>
             <select
               value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none cursor-pointer"
+              onChange={(e) => {
+                const val = e.target.value;
+                setDateFilter(val);
+                if (val === '7Days' || val === 'All') {
+                  setSelectedSessionId?.('ALL');
+                } else if (val === 'Today') {
+                  setSelectedSessionId?.('CURRENT');
+                }
+              }}
+              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-bold focus:outline-none cursor-pointer"
             >
               <option value="All">Semua Tanggal Arsip</option>
               <option value="Today">Hari Ini ({new Date().toLocaleDateString('id-ID')})</option>
@@ -398,14 +445,32 @@ export const LogsTab: React.FC<LogsTabProps> = ({
           </div>
         </div>
 
-        <DataTable filteredLogsData={filteredLogsData} dateFilter={dateFilter} />
+        <DataTable
+          filteredLogsData={filteredLogsData}
+          dateFilter={dateFilter}
+          isAdmin={isAdmin}
+          setPoint={targetTempHot}
+          toleranceLevel={toleranceLevel}
+        />
 
         <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-slate-500 no-print border-t border-slate-100 pt-3">
-          <span>Menampilkan {filteredLogsData.length} baris data telemetri (Sampling: {logInterval})</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span>Menampilkan {filteredLogsData.length} baris data telemetri (Sampling: {logInterval})</span>
+            {steadyCount > 0 && (
+              <span className="inline-flex items-center gap-1 font-bold text-sky-800 bg-sky-100/90 border border-sky-200 px-2 py-0.5 rounded-full text-[11px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-600" />
+                {steadyCount} baris data Steady State ({steadyLower.toFixed(0)}–{steadyUpper.toFixed(0)}°C)
+              </span>
+            )}
+          </div>
           <span className="font-semibold text-slate-700">
             Sesi Terpilih:{' '}
-            {(selectedSessionId === 'CURRENT' || (currentSession && selectedSessionId === currentSession.id)) ? (currentSession?.id || 'Aktif') : selectedSessionId}
-            {activeSessionObj?.operatorName ? ` (${activeSessionObj.operatorName})` : ''}
+            {selectedSessionId === 'ALL'
+              ? `Semua Sesi (${dateFilter === '7Days' ? '7 Hari Terakhir' : 'Akumulasi'})`
+              : (selectedSessionId === 'CURRENT' || (currentSession && selectedSessionId === currentSession.id))
+                ? (currentSession?.id || 'Aktif')
+                : selectedSessionId}
+            {activeSessionObj?.operatorName && selectedSessionId !== 'ALL' ? ` (${activeSessionObj.operatorName})` : ''}
           </span>
         </div>
       </div>

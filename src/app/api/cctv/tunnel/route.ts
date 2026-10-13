@@ -62,6 +62,23 @@ async function saveTunnelToSupabase(publicUrl: string): Promise<boolean> {
   }
 }
 
+async function testTunnelReachability(url: string): Promise<boolean> {
+  if (!url || !url.startsWith('http')) return false;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2000);
+    const res = await fetch(url, {
+      method: 'GET',
+      signal: controller.signal,
+      cache: 'no-store'
+    });
+    clearTimeout(timeout);
+    return res.status < 500;
+  } catch (_) {
+    return false;
+  }
+}
+
 export async function GET() {
   // 1. Coba ambil dari Supabase Cloud (Sinkronisasi Global otomatis ke semua admin/Vercel)
   let publicUrl = await getTunnelFromSupabase();
@@ -81,10 +98,14 @@ export async function GET() {
     }
   }
 
+  // Uji apakah URL tersebut benar-benar aktif dan dapat diakses (bukan stale/unplugged)
+  const isOnline = publicUrl ? await testTunnelReachability(publicUrl) : false;
+
   return NextResponse.json({
     success: true,
-    publicUrl: publicUrl || '',
-    hasConfig: Boolean(publicUrl)
+    publicUrl: isOnline ? publicUrl : '',
+    hasConfig: Boolean(publicUrl),
+    isOnline
   });
 }
 

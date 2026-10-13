@@ -37,9 +37,9 @@ export const StatCards: React.FC<StatCardsProps> = ({
   const t3 = supabaseTelemetry ? supabaseTelemetry.temp_3 : latestData.ti3;
   const t4 = supabaseTelemetry ? supabaseTelemetry.temp_4 : latestData.ti4;
 
-  // Disesuaikan: nilai sensor hardware flow_rate_2 adalah panas (FC1), flow_rate adalah dingin (FC2)
-  const fc1 = supabaseTelemetry?.flow_rate_2 !== undefined ? supabaseTelemetry.flow_rate_2 : latestData.fc1;
-  const fc2 = supabaseTelemetry?.flow_rate !== undefined ? supabaseTelemetry.flow_rate : latestData.fc2;
+  // Nilai sensor debit hardware: flow_rate adalah panas (FC1), flow_rate_2 adalah dingin (FC2)
+  const fc1 = supabaseTelemetry?.flow_rate !== undefined ? supabaseTelemetry.flow_rate : latestData.fc1;
+  const fc2 = supabaseTelemetry?.flow_rate_2 !== undefined ? supabaseTelemetry.flow_rate_2 : latestData.fc2;
 
   const pi1 = supabaseTelemetry?.pressure !== undefined ? supabaseTelemetry.pressure : latestData.pi1;
   const pi2 = supabaseTelemetry?.pressure_outlet !== undefined ? supabaseTelemetry.pressure_outlet : latestData.pi2;

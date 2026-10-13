@@ -15,7 +15,8 @@ import {
   AlertTriangle,
   Wifi,
   RotateCw,
-  ExternalLink
+  ExternalLink,
+  VideoOff
 } from 'lucide-react';
 import { TelemetryPoint, TempLabels } from '@/types';
 import { PtzController } from './PtzController';
@@ -23,6 +24,7 @@ import { CctvWifiModal } from './CctvWifiModal';
 import { CctvStorageModal } from './CctvStorageModal';
 
 export interface CctvTabProps {
+  isCctvOnline?: boolean;
   selectedCamera: 'cam1' | 'cam2' | 'cam3';
   setSelectedCamera: (cam: 'cam1' | 'cam2' | 'cam3') => void;
   cctvStreamSource: 'local' | 'demo' | 'custom' | string;
@@ -89,9 +91,11 @@ export const CctvTab: React.FC<CctvTabProps> = ({
   ptzMoving,
   latestData,
   isHardwareOnline = false,
+  isCctvOnline = false,
   tempLabels,
   cctvMediaList = []
 }) => {
+  const isStreamOnline = Boolean(webrtcConnected || isCctvOnline);
   const [isWifiModalOpen, setIsWifiModalOpen] = React.useState(false);
   const [isStorageModalOpen, setIsStorageModalOpen] = React.useState(false);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
@@ -174,13 +178,10 @@ export const CctvTab: React.FC<CctvTabProps> = ({
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <div className={`w-2.5 h-2.5 rounded-full ${isStreamOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
             <h2 className="text-lg font-bold text-slate-900 tracking-tight">
               CCTV Live Monitoring — Heat Exchanger Lab
             </h2>
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold border bg-emerald-50 text-emerald-700 border-emerald-200">
-              STREAM ONLINE (REAL-TIME)
-            </span>
             <button
               type="button"
               onClick={async () => {
@@ -188,13 +189,15 @@ export const CctvTab: React.FC<CctvTabProps> = ({
                 try {
                   const res = await fetch('/api/cctv/tunnel');
                   const data = await res.json();
-                  if (data?.success && data?.publicUrl && setCctvPublicUrl) {
+                  if (data?.success && data?.isOnline && data?.publicUrl && setCctvPublicUrl) {
                     setCctvPublicUrl(data.publicUrl);
+                  } else if (setCctvPublicUrl) {
+                    setCctvPublicUrl('');
                   }
-                } catch (_) {}
+                } catch (_) { }
                 setStreamRefreshKey((k) => k + 1);
                 connectWebRTC();
-                triggerCctvToast('Menyegarkan tayangan CCTV...', 'info');
+                triggerCctvToast(isStreamOnline ? 'Menyegarkan tayangan CCTV...' : 'Memeriksa kembali koneksi kamera...', 'info');
                 setTimeout(() => setIsRefreshing(false), 1200);
               }}
               className="p-1.5 text-slate-400 hover:text-sky-600 hover:bg-slate-100 rounded-lg transition cursor-pointer"
@@ -233,14 +236,14 @@ export const CctvTab: React.FC<CctvTabProps> = ({
             {/* Top Floating Badges */}
             <div className="relative z-20 flex justify-between items-center text-xs text-white/90 font-mono pointer-events-none">
               <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <span className={`w-2 h-2 rounded-full ${isStreamOnline ? 'bg-red-500 animate-pulse' : 'bg-zinc-500'}`} />
                 <span className="text-[11px] font-semibold tracking-wider">
-                  LIVE • RIG HEAT EXCHANGER LAB
+                  {isStreamOnline ? 'LIVE • RIG HEAT EXCHANGER LAB' : 'OFFLINE • RIG HEAT EXCHANGER LAB'}
                 </span>
               </div>
 
               <div className="flex items-center gap-2 pointer-events-auto">
-                {isManualRecording && (
+                {isManualRecording && isStreamOnline && (
                   <div className="flex items-center gap-1.5 bg-red-600/90 text-white px-2.5 py-0.5 rounded-full text-[11px] font-bold animate-pulse">
                     <Disc className="w-3 h-3 animate-spin" />
                     <span>REC {String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:{String(recordingSeconds % 60).padStart(2, '0')}</span>
@@ -248,19 +251,21 @@ export const CctvTab: React.FC<CctvTabProps> = ({
                 )}
 
                 <div className="bg-black/60 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/10 text-[10px] font-semibold text-zinc-300">
-                  1080P
+                  {isStreamOnline ? '1080P' : 'OFFLINE'}
                 </div>
 
-                <a
-                  href={cloudflareEmbedUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-black/60 hover:bg-black/90 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/10 text-[10px] font-semibold text-sky-300 hover:text-white flex items-center gap-1 transition"
-                  title="Buka Streaming di Tab Baru"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  <span>Tab Baru</span>
-                </a>
+                {isStreamOnline && (
+                  <a
+                    href={cloudflareEmbedUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-black/60 hover:bg-black/90 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/10 text-[10px] font-semibold text-sky-300 hover:text-white flex items-center gap-1 transition"
+                    title="Buka Streaming di Tab Baru"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    <span>Tab Baru</span>
+                  </a>
+                )}
               </div>
             </div>
 
@@ -273,14 +278,61 @@ export const CctvTab: React.FC<CctvTabProps> = ({
 
             {/* Video Stream Element */}
             <div className="absolute inset-0 z-10 w-full h-full flex items-center justify-center bg-black overflow-hidden rounded-2xl">
-              <iframe
-                key={streamRefreshKey}
-                src={`${cloudflareEmbedUrl}${cloudflareEmbedUrl.includes('?') ? '&' : '?'}_t=${streamRefreshKey}`}
-                className="w-full h-full border-0 rounded-2xl bg-black"
-                allow="autoplay *; fullscreen *; encrypted-media *; picture-in-picture *"
-                allowFullScreen
-                title="Live CCTV Feed - Rig Heat Exchanger"
-              />
+              {!isStreamOnline ? (
+                <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-b from-zinc-900 via-zinc-950 to-black text-center select-none">
+                  <div className="w-16 h-16 rounded-2xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-rose-500 mb-3.5 shadow-2xl">
+                    <VideoOff className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-extrabold text-white tracking-tight">
+                    Kamera CCTV Tidak Terhubung
+                  </h3>
+                  <p className="text-xs text-zinc-400 max-w-md mt-1.5 leading-relaxed font-normal">
+                    Kamera sedang tidak terhubung ke sumber listrik atau jaringan lab sedang offline. Hubungkan adaptor daya dan Wi-Fi kamera untuk memulai tayangan.
+                  </p>
+
+                  <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                    <span className="px-2.5 py-1 rounded-lg bg-zinc-900/90 border border-zinc-800 text-[11px] font-mono text-zinc-400">
+                      Status: <strong className="text-rose-400">OFFLINE</strong>
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-zinc-900/90 border border-zinc-800 text-[11px] font-mono text-zinc-400">
+                      NVR: <strong className="text-zinc-500">TERPUTUS</strong>
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsRefreshing(true);
+                      try {
+                        const res = await fetch('/api/cctv/tunnel');
+                        const data = await res.json();
+                        if (data?.success && data?.isOnline && data?.publicUrl && setCctvPublicUrl) {
+                          setCctvPublicUrl(data.publicUrl);
+                        } else if (setCctvPublicUrl) {
+                          setCctvPublicUrl('');
+                        }
+                      } catch (_) { }
+                      setStreamRefreshKey((k) => k + 1);
+                      connectWebRTC();
+                      triggerCctvToast('Memeriksa kembali koneksi kamera...', 'info');
+                      setTimeout(() => setIsRefreshing(false), 1200);
+                    }}
+                    className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow-lg shadow-sky-600/30 cursor-pointer active:scale-95"
+                  >
+                    <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    <span>{isRefreshing ? 'Memeriksa...' : 'Cek Ulang Koneksi'}</span>
+                  </button>
+                </div>
+              ) : (
+                <iframe
+                  key={streamRefreshKey}
+                  src={`${cloudflareEmbedUrl}${cloudflareEmbedUrl.includes('?') ? '&' : '?'}_t=${streamRefreshKey}`}
+                  className="w-full h-full border-0 rounded-2xl bg-black"
+                  allow="autoplay *; fullscreen *; encrypted-media *; picture-in-picture *"
+                  allowFullScreen
+                  title="Live CCTV Feed - Rig Heat Exchanger"
+                />
+              )}
             </div>
 
             {/* Bottom Status & Snapshot Bar */}
@@ -294,6 +346,10 @@ export const CctvTab: React.FC<CctvTabProps> = ({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (!isStreamOnline) {
+                      triggerCctvToast('Kamera offline. Perekaman NVR siaga.', 'warning');
+                      return;
+                    }
                     setCctvRecording(!cctvRecording);
                   }}
                   className="p-1 hover:bg-white/10 rounded-md transition text-zinc-300 hover:text-white cursor-pointer"
@@ -302,7 +358,9 @@ export const CctvTab: React.FC<CctvTabProps> = ({
                   {cctvRecording ? <Pause className="w-3.5 h-3.5 text-emerald-400" /> : <Play className="w-3.5 h-3.5" />}
                 </button>
                 <span className="text-[11px] text-zinc-300 font-medium">
-                  NVR: <strong className="text-emerald-400">{cctvRecording ? '24/7 Aktif' : 'Jeda'}</strong> (Klik untuk File)
+                  NVR: <strong className={isStreamOnline && cctvRecording ? 'text-emerald-400' : 'text-zinc-500'}>
+                    {isStreamOnline ? (cctvRecording ? '24/7 Aktif' : 'Jeda') : 'Offline'}
+                  </strong> (Klik untuk File)
                 </span>
               </div>
 
@@ -348,8 +406,8 @@ export const CctvTab: React.FC<CctvTabProps> = ({
                 type="button"
                 onClick={handleToggleManualRecord}
                 className={`flex flex-col items-center justify-center p-3 rounded-xl transition text-xs font-bold gap-1.5 border shadow-xs cursor-pointer active:scale-95 ${isManualRecording
-                    ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-500/20'
-                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                  ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-500/20'
+                  : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
                   }`}
                 title={isManualRecording ? 'Hentikan rekaman dan unduh file MP4' : 'Rekam klip live MP4 dengan audio'}
               >
@@ -381,8 +439,8 @@ export const CctvTab: React.FC<CctvTabProps> = ({
                   triggerCctvToast(!nextMuted ? 'Suara CCTV aktif' : 'Suara CCTV dinonaktifkan', 'info');
                 }}
                 className={`flex flex-col items-center justify-center p-3 rounded-xl transition text-xs font-bold gap-1.5 border shadow-xs cursor-pointer active:scale-95 ${!cctvAudioMuted
-                    ? 'bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 text-white border-sky-400/40 shadow-sm'
-                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                  ? 'bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 text-white border-sky-400/40 shadow-sm'
+                  : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
                   }`}
                 title="Nyalakan/matikan audio mikrofon laboratorium"
               >
@@ -432,7 +490,7 @@ export const CctvTab: React.FC<CctvTabProps> = ({
           onPtzAction={handlePtzAction}
           onPtzPreset={handlePtzPreset}
           latestData={latestData}
-          connected={Boolean(webrtcConnected || isHardwareOnline || cctvPublicUrl)}
+          connected={isStreamOnline}
           isHardwareOnline={isHardwareOnline}
           tempLabels={tempLabels}
         />

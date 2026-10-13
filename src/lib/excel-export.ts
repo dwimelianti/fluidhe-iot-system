@@ -94,12 +94,13 @@ function downloadWorkbook(wb: XLSX.WorkBook, fileName: string): void {
  */
 export function exportSessionToExcel(
   session: SystemSession,
-  options?: { fileName?: string; returnBlob?: boolean }
+  options?: { fileName?: string; returnBlob?: boolean; isAdmin?: boolean }
 ): { blob?: Blob; fileName: string } {
   const wb = XLSX.utils.book_new();
   const data = session.data || [];
   const now = new Date();
   const exportTimeStr = `${now.toLocaleDateString('id-ID')} ${now.toLocaleTimeString('id-ID')} WIB`;
+  const isUserAdmin = options?.isAdmin ?? (session.operatorRole === 'admin');
 
   // Struktur Metadata yang Rapi (2 Kolom Informasi Bersebelahan dengan Spasi)
   const rows: any[][] = [
@@ -131,7 +132,8 @@ export function exportSessionToExcel(
       'TI4 - Cold Out (°C)',
       'ΔT Hot (°C)',
       'ΔT Cold (°C)',
-      'LMTD (°C)',
+      'Status Termal',
+      isUserAdmin ? 'LMTD (°C)' : 'LMTD (Hitung Mandiri)',
       'FC1 - Hot Flow (L/min)',
       'FC2 - Cold Flow (L/min)',
       'PI1 - Hot In (Bar)',
@@ -160,6 +162,9 @@ export function exportSessionToExcel(
     const qHot = ((Math.max(0, d.fc1 || 0)) / 60) * 4184 * dtHot;
     const qCold = ((Math.max(0, d.fc2 || 0)) / 60) * 4184 * dtCold;
 
+    const sp = d.tc1Setpoint || 50;
+    const isSteady = (d.ti1 !== undefined && d.ti1 !== null) && d.ti1 >= (sp - 1) && d.ti1 <= (sp + 1);
+
     rows.push([
       i + 1,
       d.timestamp || '-',
@@ -169,7 +174,8 @@ export function exportSessionToExcel(
       parseFloat((d.ti4 || 0).toFixed(2)),
       parseFloat(dtHot.toFixed(2)),
       parseFloat(dtCold.toFixed(2)),
-      parseFloat(lmtd.toFixed(2)),
+      isSteady ? 'STEADY' : 'UNSTEADY',
+      isUserAdmin ? parseFloat(lmtd.toFixed(2)) : '-',
       parseFloat((d.fc1 || 0).toFixed(2)),
       parseFloat((d.fc2 || 0).toFixed(2)),
       parseFloat((d.pi1 || 0).toFixed(2)),
@@ -191,7 +197,7 @@ export function exportSessionToExcel(
 
   // Set Penggabungan Sel (Merges) untuk Tampilan Judul
   ws['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 22 } }, // Judul utama A1:W1
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 23 } }, // Judul utama A1:X1
     { s: { r: 2, c: 0 }, e: { r: 2, c: 1 } }, // Subheader A3:B3
     { s: { r: 2, c: 3 }, e: { r: 2, c: 4 } }  // Subheader D3:E3
   ];
@@ -206,21 +212,22 @@ export function exportSessionToExcel(
     5: 18,  // TI4 - Cold Out (°C)
     6: 16,  // ΔT Hot (°C)
     7: 16,  // ΔT Cold (°C)
-    8: 16,  // LMTD (°C)
-    9: 24,  // FC1 - Hot Flow (L/min)
-    10: 24, // FC2 - Cold Flow (L/min)
-    11: 18, // PI1 - Hot In (Bar)
-    12: 18, // PI2 - Hot Out (Bar)
-    13: 18, // PI3 - Cold In (Bar)
-    14: 18, // PI4 - Cold Out (Bar)
-    15: 16, // ΔP Hot (Bar)
-    16: 16, // ΔP Cold (Bar)
-    17: 16, // Q Hot (Watt)
-    18: 16, // Q Cold (Watt)
-    19: 18, // Target Temp (°C)
-    20: 12, // Heater 1
-    21: 12, // Heater 2
-    22: 20  // Mode Aliran
+    8: 16,  // Status Termal
+    9: 16,  // LMTD (°C)
+    10: 24, // FC1 - Hot Flow (L/min)
+    11: 24, // FC2 - Cold Flow (L/min)
+    12: 18, // PI1 - Hot In (Bar)
+    13: 18, // PI2 - Hot Out (Bar)
+    14: 18, // PI3 - Cold In (Bar)
+    15: 18, // PI4 - Cold Out (Bar)
+    16: 16, // ΔP Hot (Bar)
+    17: 16, // ΔP Cold (Bar)
+    18: 16, // Q Hot (Watt)
+    19: 16, // Q Cold (Watt)
+    20: 18, // Target Temp (°C)
+    21: 12, // Heater 1
+    22: 12, // Heater 2
+    23: 20  // Mode Aliran
   };
 
   applyAutoColumnWidths(ws, rows, minWidths, 16);

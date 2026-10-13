@@ -99,7 +99,7 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
             </div>
 
             <div className="pt-2 border-t border-slate-100/90 text-[10.5px] sm:text-[11px] text-slate-500 flex justify-between items-center gap-1">
-              <span className="truncate">Target: {tc1Setpoint}°C</span>
+              <span className="truncate">Status Suhu:</span>
               {!hasHardwareData ? (
                 <span className="font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded text-[10px] border border-rose-200 shrink-0">
                   Offline
@@ -112,23 +112,23 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
             </div>
           </div>
 
-        {/* Card 2: T2 (Air Dingin: Selalu Cold Outlet) */}
+        {/* Card 2: T2 (Air Panas: Selalu Hot Outlet) */}
         <div
           onClick={onCardClick}
-          className="asklepios-card p-3 sm:p-4 relative overflow-hidden cursor-pointer hover:border-cyan-300 hover:shadow-md transition active:scale-[0.98] select-none flex flex-col justify-between h-full min-h-[148px]"
+          className="asklepios-card p-3 sm:p-4 relative overflow-hidden cursor-pointer hover:border-orange-300 hover:shadow-md transition active:scale-[0.98] select-none flex flex-col justify-between h-full min-h-[148px]"
           title="Klik untuk membuka Kontrol Pemanas & Suhu"
         >
           <div className="flex justify-between items-start gap-1">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-xs font-bold text-slate-800 truncate">{tempLabels.t2}</span>
-                <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700 shrink-0">T2</span>
+                <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 shrink-0">T2</span>
               </div>
               <span className="text-[10px] text-slate-400 font-medium block mt-0.5 truncate">
-                T2 = Sensor Suhu (Outlet Dingin)
+                T2 = Sensor Suhu (Outlet Panas)
               </span>
             </div>
-            <span className="p-1.5 bg-cyan-50 text-cyan-600 rounded-xl shrink-0">
+            <span className="p-1.5 bg-orange-50 text-orange-600 rounded-xl shrink-0">
               <Thermometer className="w-4 h-4" />
             </span>
           </div>
@@ -154,9 +154,9 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
           </div>
 
           <div className="pt-2 border-t border-slate-100/90 text-[10.5px] sm:text-[11px] text-slate-500 flex justify-between items-center gap-1">
-            <span className="truncate">Kenaikan Suhu:</span>
+            <span className="truncate">Penurunan Suhu:</span>
             <span className="font-bold shrink-0 text-slate-700">
-              {hasHardwareData ? `+${Math.max(0, latestData.ti2 - latestData.ti3).toFixed(1)}°C` : '--'}
+              {hasHardwareData ? `${Math.abs(latestData.ti1 - latestData.ti2).toFixed(1)}°C` : '--'}
             </span>
           </div>
         </div>
@@ -212,23 +212,23 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
           </div>
         </div>
 
-        {/* Card 4: T4 (Air Panas: Counter = Hot Out, Co-Current = Hot In) */}
+        {/* Card 4: T4 (Air Dingin: Selalu Cold Outlet) */}
         <div
           onClick={onCardClick}
-          className="asklepios-card p-3 sm:p-4 relative overflow-hidden cursor-pointer hover:border-rose-300 hover:shadow-md transition active:scale-[0.98] select-none flex flex-col justify-between h-full min-h-[148px]"
+          className="asklepios-card p-3 sm:p-4 relative overflow-hidden cursor-pointer hover:border-cyan-300 hover:shadow-md transition active:scale-[0.98] select-none flex flex-col justify-between h-full min-h-[148px]"
           title="Klik untuk membuka Kontrol Pemanas & Suhu"
         >
           <div className="flex justify-between items-start gap-1">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-xs font-bold text-slate-800 truncate">{tempLabels.t4}</span>
-                <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 shrink-0">T4</span>
+                <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700 shrink-0">T4</span>
               </div>
               <span className="text-[10px] text-slate-400 font-medium block mt-0.5 truncate">
-                T4 = Sensor Suhu ({isT4In ? 'Inlet Panas' : 'Outlet Panas'})
+                T4 = Sensor Suhu (Outlet Dingin)
               </span>
             </div>
-            <span className="p-1.5 bg-orange-50 text-orange-600 rounded-xl shrink-0">
+            <span className="p-1.5 bg-cyan-50 text-cyan-600 rounded-xl shrink-0">
               <Thermometer className="w-4 h-4" />
             </span>
           </div>
@@ -254,9 +254,9 @@ export const TelemetryCards: React.FC<TelemetryCardsProps> = ({
           </div>
 
           <div className="pt-2 border-t border-slate-100/90 text-[10.5px] sm:text-[11px] text-slate-500 flex justify-between items-center gap-1">
-            <span className="truncate">Penurunan Suhu:</span>
+            <span className="truncate">Kenaikan Suhu:</span>
             <span className="font-bold shrink-0 text-slate-700">
-              {hasHardwareData ? `${Math.abs(latestData.ti1 - latestData.ti4).toFixed(1)}°C` : '--'}
+              {hasHardwareData ? `+${Math.max(0, latestData.ti4 - latestData.ti3).toFixed(1)}°C` : '--'}
             </span>
           </div>
         </div>

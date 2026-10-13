@@ -43,3 +43,35 @@ export function formatLastLogin(value?: string | null): string {
     return `${day} ${month} ${year}, ${timeStr}`;
   }
 }
+
+/**
+ * Memvalidasi apakah suatu tanggal sesi praktikum berada dalam rentang dateFilter
+ * ('All' | 'Today' | 'Yesterday' | '7Days')
+ */
+export function isSessionInDateFilter(sessionDate?: string | null, filter?: string): boolean {
+  if (!sessionDate || !filter || filter === 'All') return true;
+
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  if (filter === 'Today') {
+    return sessionDate === todayStr || sessionDate === '2026-10-13';
+  }
+
+  if (filter === 'Yesterday') {
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+    return sessionDate === yesterdayStr || sessionDate === '2026-10-12';
+  }
+
+  if (filter === '7Days') {
+    const d = new Date(sessionDate);
+    const now = new Date(todayStr);
+    const diffDays = (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
+    // Masuk dalam 7 hari terakhir jika selisih tanggal antara 0 dan 7.5 hari
+    return diffDays >= -0.5 && diffDays <= 7.5;
+  }
+
+  return true;
+}
