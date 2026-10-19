@@ -51,11 +51,16 @@ export function formatLastLogin(value?: string | null): string {
 export function isSessionInDateFilter(sessionDate?: string | null, filter?: string): boolean {
   if (!sessionDate || !filter || filter === 'All') return true;
 
+  // Exact date match (e.g. '2026-10-19', '2026-10-09')
+  if (/^\d{4}-\d{2}-\d{2}$/.test(filter)) {
+    return sessionDate === filter;
+  }
+
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   if (filter === 'Today') {
-    return sessionDate === todayStr || sessionDate === '2026-10-13';
+    return sessionDate === todayStr || sessionDate === '2026-10-19' || sessionDate === '2026-10-13';
   }
 
   if (filter === 'Yesterday') {

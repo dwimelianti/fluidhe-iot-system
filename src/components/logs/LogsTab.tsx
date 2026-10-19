@@ -12,7 +12,9 @@ import {
   Users,
   GraduationCap,
   Filter,
-  Trash2
+  Trash2,
+  Calendar,
+  Clock
 } from 'lucide-react';
 import { SystemOperationalStatus, SystemSession, TelemetryPoint } from '@/types';
 import { ExportButtons } from './ExportButtons';
@@ -138,13 +140,78 @@ export const LogsTab: React.FC<LogsTabProps> = ({
     return fromArchives + fromCurrent;
   }, [archivedSessions, currentSession]);
 
+  // Daftar tanggal unik yang tersedia berdasarkan filter operator saat ini
+  const availableDates = useMemo(() => {
+    let relevantSessions = [...archivedSessions];
+    if (currentSession) {
+      relevantSessions.push(currentSession);
+    }
+
+    if (isAdmin && classFilter !== 'ALL') {
+      relevantSessions = relevantSessions.filter(
+        (s) =>
+          (s.operatorEmail && s.operatorEmail.toLowerCase() === classFilter.toLowerCase()) ||
+          (s.classGroup && s.classGroup.toLowerCase() === classFilter.toLowerCase()) ||
+          (s.operatorName && s.operatorName.toLowerCase() === classFilter.toLowerCase())
+      );
+    }
+
+    const dateMap = new Map<string, number>();
+    for (const s of relevantSessions) {
+      if (s?.date) {
+        dateMap.set(s.date, (dateMap.get(s.date) || 0) + 1);
+      }
+    }
+
+    const sortedDates = Array.from(dateMap.keys()).sort((a, b) => {
+      return new Date(b).getTime() - new Date(a).getTime();
+    });
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    return sortedDates.map((dateStr) => {
+      const count = dateMap.get(dateStr) || 0;
+      const isToday = dateStr === todayStr;
+
+      const dObj = new Date(dateStr);
+      const dateFormatted = !isNaN(dObj.getTime())
+        ? dObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+        : dateStr;
+
+      let label = `${dateStr} (${dateFormatted}) - ${count} sesi`;
+      if (isToday) {
+        label = `🟢 ${dateStr} (Hari Ini) - ${count} sesi`;
+      }
+      return {
+        date: dateStr,
+        label,
+        count
+      };
+    });
+  }, [archivedSessions, currentSession, isAdmin, classFilter]);
+
   // Selected session object for banner detail
   const activeSessionObj = useMemo(() => {
     if (selectedSessionId === 'ALL') {
+      const dateLabel = dateFilter === '7Days'
+        ? '7 Hari Terakhir'
+        : dateFilter === 'Today'
+          ? 'Hari Ini'
+          : dateFilter === 'All'
+            ? 'Semua Tanggal Arsip'
+            : dateFilter;
+      const titleLabel = dateFilter === '7Days'
+        ? 'Akumulasi Data 7 Hari Terakhir'
+        : dateFilter === 'Today'
+          ? 'Akumulasi Data Hari Ini'
+          : dateFilter === 'All'
+            ? 'Akumulasi Semua Riwayat Praktikum'
+            : `Akumulasi Praktikum Tanggal ${dateFilter}`;
+
       return {
         id: 'ALL',
-        title: dateFilter === '7Days' ? 'Akumulasi Data 7 Hari Terakhir (Termasuk 08-10-2026)' : dateFilter === 'Today' ? 'Akumulasi Data Hari Ini' : 'Akumulasi Semua Riwayat Praktikum',
-        date: dateFilter === '7Days' ? '7 Hari Terakhir' : dateFilter === 'Today' ? 'Hari Ini' : 'Semua Tanggal Arsip',
+        title: titleLabel,
+        date: dateLabel,
         operatorName: classFilter !== 'ALL' ? classFilter : (currentUser?.name || 'Seluruh Sesi Praktikum'),
         classGroup: 'Semua Praktikum Terdata',
         pointsCount: totalTelemetryCount,
@@ -319,12 +386,12 @@ export const LogsTab: React.FC<LogsTabProps> = ({
           </p>
         </div>
 
-        {/* Filter Controls Bar */}
+        {/* Filter Controls Bar (Hierarki: Operator -> Tanggal -> Sesi) */}
         <div
           className={`p-4 bg-white rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 ${isAdmin ? 'lg:grid-cols-5' : 'lg:grid-cols-4'
             } gap-4 mb-6 no-print shadow-sm`}
         >
-          {/* Admin Class / Operator Filter (Khusus Admin) */}
+          {/* 1. Admin Class / Operator Filter (Khusus Admin) */}
           {isAdmin && setClassFilter && (
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
@@ -335,6 +402,7 @@ export const LogsTab: React.FC<LogsTabProps> = ({
                 onChange={(e) => {
                   const newFilter = e.target.value;
                   setClassFilter(newFilter);
+                  setDateFilter('All');
                   // Otomatis pilih sesi pertama dari kelas yang difilter agar data langsung tampil
                   if (newFilter !== 'ALL') {
                     const matches = archivedSessions.filter(
@@ -350,9 +418,9 @@ export const LogsTab: React.FC<LogsTabProps> = ({
                     setSelectedSessionId?.('CURRENT');
                   }
                 }}
-                className="w-full px-3 py-1.5 bg-sky-50/50 border border-sky-200 rounded-xl text-xs text-sky-950 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
+                className="w-full px-3 py-1.5 bg-sky-50/50 border border-sky-200 rounded-xl text-xs text-sky-950 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer shadow-2xs"
               >
-                <option value="ALL">Semua Operator / User ({archivedSessions.length} sesi)</option>
+                <option value="ALL">Semua Operator / User ({archivedSessions.length + (currentSession ? 1 : 0)} sesi)</option>
                 {classesList.map((c) => (
                   <option key={c.operatorEmail || c.operatorName} value={c.operatorEmail || c.operatorName}>
                     {c.operatorName} ({c.count} sesi)
@@ -362,19 +430,59 @@ export const LogsTab: React.FC<LogsTabProps> = ({
             </div>
           )}
 
-          {/* Session Selector (Anti Data Tercampur & Akumulasi) */}
+          {/* 2. Tanggal Filter (Dinamis: Operator -> Tanggal -> Sesi) */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-              <Layers className="w-3.5 h-3.5 text-sky-600" />
-              Pilih Sesi Praktikum
+              <Calendar className="w-3.5 h-3.5 text-sky-600" /> Pilih Tanggal
+            </label>
+            <select
+              value={dateFilter}
+              onChange={(e) => {
+                const val = e.target.value;
+                setDateFilter(val);
+                if (val === 'All') {
+                  setSelectedSessionId?.('ALL');
+                } else {
+                  // Otomatis pilih sesi pertama di tanggal ini agar grafik & tabel langsung terisi
+                  const matches = archivedSessions.filter((s) => {
+                    const matchOperator = !isAdmin || classFilter === 'ALL' ||
+                      (s.operatorEmail && s.operatorEmail.toLowerCase() === classFilter.toLowerCase()) ||
+                      (s.classGroup && s.classGroup.toLowerCase() === classFilter.toLowerCase()) ||
+                      (s.operatorName && s.operatorName.toLowerCase() === classFilter.toLowerCase());
+                    return matchOperator && isSessionInDateFilter(s.date, val);
+                  });
+                  if (matches.length > 0) {
+                    setSelectedSessionId?.(matches[0].id);
+                  } else if (currentSession && isSessionInDateFilter(currentSession.date, val)) {
+                    setSelectedSessionId?.('CURRENT');
+                  } else {
+                    setSelectedSessionId?.('ALL');
+                  }
+                }
+              }}
+              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer shadow-2xs"
+            >
+              <option value="All">Semua Tanggal Arsip</option>
+              {availableDates.map((item) => (
+                <option key={item.date} value={item.date}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 3. Session Selector (Hanya menampilkan sesi yang sesuai tanggal & operator) */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+              <Layers className="w-3.5 h-3.5 text-sky-600" /> Pilih Sesi Praktikum
             </label>
             <select
               value={selectedSessionId}
               onChange={(e) => setSelectedSessionId?.(e.target.value)}
-              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
+              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer shadow-2xs"
             >
               <option value="ALL">
-                Semua Sesi Praktikum ({dateFilter === '7Days' ? '7 Hari Terakhir' : dateFilter === 'Today' ? 'Hari Ini' : 'Semua Tanggal'})
+                Semua Sesi {dateFilter !== 'All' ? `(${dateFilter})` : '(Semua Tanggal)'}
               </option>
               {currentSession && isSessionInDateFilter(currentSession.date, dateFilter) && (classFilter === 'ALL' || (currentSession.operatorEmail && currentSession.operatorEmail.toLowerCase() === classFilter.toLowerCase()) || (currentSession.operatorName && currentSession.operatorName.toLowerCase() === classFilter.toLowerCase())) && (
                 <option value="CURRENT">
@@ -383,7 +491,7 @@ export const LogsTab: React.FC<LogsTabProps> = ({
               )}
               {visibleArchivedSessions.map((s, idx) => (
                 <option key={s.id} value={s.id}>
-                  📁 {isAdmin ? `[${s.operatorName}] ` : ''}Sesi #{visibleArchivedSessions.length - idx}: {s.date} ({s.startTime || '-'})
+                  📁 {isAdmin && classFilter === 'ALL' ? `[${s.operatorName}] ` : ''}Sesi #{visibleArchivedSessions.length - idx}: {s.title || s.date} ({s.startTime || '-'})
                 </option>
               ))}
               {!currentSession && visibleArchivedSessions.length === 0 && (
@@ -392,26 +500,15 @@ export const LogsTab: React.FC<LogsTabProps> = ({
             </select>
           </div>
 
+          {/* 4. Interval Sampling */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Cari Waktu / Sensor</label>
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                value={logSearchQuery}
-                onChange={(e) => setLogSearchQuery(e.target.value)}
-                placeholder="Contoh: 12.31, 25.00, ON, Counter..."
-                className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Interval Sampling</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-sky-600" /> Interval Sampling
+            </label>
             <select
               value={logInterval}
               onChange={(e) => setLogInterval(e.target.value as '1s' | '2s' | '5s' | '30s' | '1m' | '5m')}
-              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-bold focus:outline-none cursor-pointer"
+              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-bold focus:outline-none cursor-pointer shadow-2xs"
             >
               <option value="1s">1 Detik</option>
               <option value="2s">2 Detik</option>
@@ -422,26 +519,21 @@ export const LogsTab: React.FC<LogsTabProps> = ({
             </select>
           </div>
 
+          {/* 5. Cari Waktu / Sensor */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Rentang Tanggal</label>
-            <select
-              value={dateFilter}
-              onChange={(e) => {
-                const val = e.target.value;
-                setDateFilter(val);
-                if (val === '7Days' || val === 'All') {
-                  setSelectedSessionId?.('ALL');
-                } else if (val === 'Today') {
-                  setSelectedSessionId?.('CURRENT');
-                }
-              }}
-              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-bold focus:outline-none cursor-pointer"
-            >
-              <option value="All">Semua Tanggal Arsip</option>
-              <option value="Today">Hari Ini ({new Date().toLocaleDateString('id-ID')})</option>
-              <option value="Yesterday">Kemarin</option>
-              <option value="7Days">7 Hari Terakhir</option>
-            </select>
+            <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+              <Search className="w-3.5 h-3.5 text-sky-600" /> Cari Waktu / Sensor
+            </label>
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={logSearchQuery}
+                onChange={(e) => setLogSearchQuery(e.target.value)}
+                placeholder="Contoh: 12.31, 25.00, ON..."
+                className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 shadow-2xs"
+              />
+            </div>
           </div>
         </div>
 
