@@ -3003,9 +3003,6 @@ export default function FluidHEDashboard() {
 
     const isCurrentSelected = selectedLogsSessionId === 'CURRENT' || (currentSession && selectedLogsSessionId === currentSession.id);
     if (isCurrentSelected) {
-      if (currentSession && !isSessionInDateFilter(currentSession.date, dateFilter)) {
-        return [];
-      }
       return (currentSession && currentSession.data && currentSession.data.length > 0)
         ? currentSession.data
         : telemetryHistory;
@@ -3013,9 +3010,6 @@ export default function FluidHEDashboard() {
 
     const archived = archivedSessions.find((s) => s.id === selectedLogsSessionId);
     if (archived && archived.data && archived.data.length > 0) {
-      if (!isSessionInDateFilter(archived.date, dateFilter)) {
-        return [];
-      }
       return archived.data;
     }
 
@@ -3026,7 +3020,7 @@ export default function FluidHEDashboard() {
     }
 
     if (currentSession && currentSession.data && currentSession.data.length > 0) {
-      return isSessionInDateFilter(currentSession.date, dateFilter) ? currentSession.data : [];
+      return currentSession.data;
     }
     return [];
   }, [selectedLogsSessionId, currentSession, telemetryHistory, archivedSessions, dateFilter, classFilter]);
