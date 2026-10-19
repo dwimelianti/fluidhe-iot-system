@@ -14,7 +14,8 @@ import {
   Filter,
   Trash2,
   Calendar,
-  Clock
+  Clock,
+  Lock
 } from 'lucide-react';
 import { SystemOperationalStatus, SystemSession, TelemetryPoint } from '@/types';
 import { ExportButtons } from './ExportButtons';
@@ -87,6 +88,8 @@ export const LogsTab: React.FC<LogsTabProps> = ({
   toleranceLevel = 1
 }) => {
   const isAdmin = currentUser?.role === 'admin';
+  // Admin harus memilih operator terlebih dahulu sebelum dapat memilih tanggal dan sesi
+  const isUserSelected = !isAdmin || (Boolean(classFilter) && classFilter !== 'ALL');
 
   // Acuan evaluasi Steady State (Set Point & Toleransi P dari Thermostat)
   const steadyLower = targetTempHot - toleranceLevel;
@@ -425,60 +428,97 @@ export const LogsTab: React.FC<LogsTabProps> = ({
                   if (newFilter !== 'ALL') {
                     const matches = archivedSessions.filter(
                       (s) =>
+                        newFilter === 'ALL_USERS' ||
                         (s.operatorEmail && s.operatorEmail.toLowerCase() === newFilter.toLowerCase()) ||
                         (s.classGroup && s.classGroup.toLowerCase() === newFilter.toLowerCase()) ||
                         (s.operatorName && s.operatorName.toLowerCase() === newFilter.toLowerCase())
                     );
                     if (matches.length > 0) {
                       setSelectedSessionId?.(matches[0].id);
+                    } else if (currentSession) {
+                      setSelectedSessionId?.('CURRENT');
+                    } else {
+                      setSelectedSessionId?.('ALL');
                     }
                   } else {
-                    setSelectedSessionId?.('CURRENT');
+                    setSelectedSessionId?.('ALL');
                   }
                 }}
                 className="w-full px-3 py-1.5 bg-sky-50/50 border border-sky-200 rounded-xl text-xs text-sky-950 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer shadow-2xs"
               >
-                <option value="ALL">Semua Operator / User ({archivedSessions.length + (currentSession ? 1 : 0)} sesi)</option>
+                <option value="ALL">-- Pilih Operator / User Terlebih Dahulu --</option>
                 {classesList.map((c) => (
                   <option key={c.operatorEmail || c.operatorName} value={c.operatorEmail || c.operatorName}>
                     {c.operatorName} ({c.count} sesi)
                   </option>
                 ))}
+                <option value="ALL_USERS">Semua Operator / User ({archivedSessions.length + (currentSession ? 1 : 0)} sesi)</option>
               </select>
             </div>
           )}
 
           {/* 2. Tanggal Filter (Kotak Terpisah: Filter Berdasarkan Tanggal) */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5 text-sky-600" /> Pilih Tanggal
+            <label className={`block text-xs font-semibold ${!isUserSelected ? 'text-slate-400' : 'text-slate-700'} mb-1 flex items-center justify-between`}>
+              <span className="flex items-center gap-1">
+                <Calendar className={`w-3.5 h-3.5 ${!isUserSelected ? 'text-slate-400' : 'text-sky-600'}`} /> Pilih Tanggal
+              </span>
+              {!isUserSelected && (
+                <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 font-normal">
+                  Terkunci
+                </span>
+              )}
             </label>
             <select
               value={dateFilter}
+              disabled={!isUserSelected}
               onChange={(e) => {
                 const val = e.target.value;
                 setDateFilter(val);
                 // Beralih ke akumulasi seluruh sesi pada tanggal tersebut agar user langsung melihat data hari itu
                 setSelectedSessionId?.('ALL');
               }}
-              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer shadow-2xs"
+              className={
+                !isUserSelected
+                  ? 'w-full px-3 py-1.5 bg-slate-100/90 border border-slate-200 rounded-xl text-xs text-slate-400 font-medium cursor-not-allowed select-none opacity-60 shadow-none'
+                  : 'w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer shadow-2xs'
+              }
             >
-              <option value="All">Semua Tanggal Arsip</option>
-              {availableDates.map((item) => (
-                <option key={item.date} value={item.date}>
-                  {item.label}
-                </option>
-              ))}
+              {!isUserSelected ? (
+                <option value="All">🔒 Pilih Operator Terlebih Dahulu</option>
+              ) : (
+                <>
+                  <option value="All">Semua Tanggal Arsip</option>
+                  {availableDates.map((item) => (
+                    <option key={item.date} value={item.date}>
+                      {item.label}
+                    </option>
+                  ))}
+                </>
+              )}
             </select>
           </div>
 
           {/* 3. Session Selector (Kotak Terpisah: Filter Berdasarkan Sesi Praktikum) */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-              <Layers className="w-3.5 h-3.5 text-sky-600" /> Pilih Sesi Praktikum
+            <label className={`block text-xs font-semibold ${!isUserSelected ? 'text-slate-400' : 'text-slate-700'} mb-1 flex items-center justify-between`}>
+              <span className="flex items-center gap-1">
+                {!isUserSelected ? (
+                  <Lock className="w-3.5 h-3.5 text-slate-400" />
+                ) : (
+                  <Layers className="w-3.5 h-3.5 text-sky-600" />
+                )}
+                Pilih Sesi Praktikum
+              </span>
+              {!isUserSelected && (
+                <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 font-normal">
+                  Terkunci
+                </span>
+              )}
             </label>
             <select
               value={selectedSessionId}
+              disabled={!isUserSelected}
               onChange={(e) => {
                 const newId = e.target.value;
                 setSelectedSessionId?.(newId);
@@ -492,42 +532,52 @@ export const LogsTab: React.FC<LogsTabProps> = ({
                   }
                 }
               }}
-              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer shadow-2xs"
+              className={
+                !isUserSelected
+                  ? 'w-full px-3 py-1.5 bg-slate-100/90 border border-slate-200 rounded-xl text-xs text-slate-400 font-medium cursor-not-allowed select-none opacity-60 shadow-none'
+                  : 'w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer shadow-2xs'
+              }
             >
-              <option value="ALL">
-                Semua Sesi {dateFilter !== 'All' ? `(${dateFilter})` : '(Semua Tanggal)'}
-              </option>
-              {currentSession && (classFilter === 'ALL' || (currentSession.operatorEmail && currentSession.operatorEmail.toLowerCase() === classFilter.toLowerCase()) || (currentSession.operatorName && currentSession.operatorName.toLowerCase() === classFilter.toLowerCase())) && (
-                <option value="CURRENT">
-                  🟢 Sesi Aktif ({currentSession.date}) {isAdmin ? `[${currentSession.operatorName}]` : ''}
-                </option>
-              )}
-              {dateFilter !== 'All' && otherArchivedSessions.length > 0 ? (
-                <>
-                  <optgroup label={`── Sesi Pada Tanggal ${dateFilter} (${visibleArchivedSessions.length}) ──`}>
-                    {visibleArchivedSessions.map((s, idx) => (
-                      <option key={s.id} value={s.id}>
-                        📁 {isAdmin && classFilter === 'ALL' ? `[${s.operatorName}] ` : ''}Sesi #{visibleArchivedSessions.length - idx}: {s.title || s.date} ({s.startTime || '-'})
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="── Sesi Tanggal Lainnya ──">
-                    {otherArchivedSessions.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        📁 {isAdmin && classFilter === 'ALL' ? `[${s.operatorName}] ` : ''}{s.date} - {s.title || 'Praktikum'} ({s.startTime || '-'})
-                      </option>
-                    ))}
-                  </optgroup>
-                </>
+              {!isUserSelected ? (
+                <option value="">🔒 Pilih Operator Terlebih Dahulu</option>
               ) : (
-                visibleArchivedSessions.map((s, idx) => (
-                  <option key={s.id} value={s.id}>
-                    📁 {isAdmin && classFilter === 'ALL' ? `[${s.operatorName}] ` : ''}Sesi #{visibleArchivedSessions.length - idx}: {s.title || s.date} ({s.startTime || '-'})
+                <>
+                  <option value="ALL">
+                    Semua Sesi {dateFilter !== 'All' ? `(${dateFilter})` : '(Semua Tanggal)'}
                   </option>
-                ))
-              )}
-              {!currentSession && visibleArchivedSessions.length === 0 && otherArchivedSessions.length === 0 && (
-                <option value="CURRENT">Belum Ada Sesi Praktikum</option>
+                  {currentSession && (classFilter === 'ALL' || classFilter === 'ALL_USERS' || (currentSession.operatorEmail && currentSession.operatorEmail.toLowerCase() === classFilter.toLowerCase()) || (currentSession.operatorName && currentSession.operatorName.toLowerCase() === classFilter.toLowerCase())) && (
+                    <option value="CURRENT">
+                      🟢 Sesi Aktif ({currentSession.date}) {isAdmin ? `[${currentSession.operatorName}]` : ''}
+                    </option>
+                  )}
+                  {dateFilter !== 'All' && otherArchivedSessions.length > 0 ? (
+                    <>
+                      <optgroup label={`── Sesi Pada Tanggal ${dateFilter} (${visibleArchivedSessions.length}) ──`}>
+                        {visibleArchivedSessions.map((s, idx) => (
+                          <option key={s.id} value={s.id}>
+                            📁 {isAdmin && (classFilter === 'ALL' || classFilter === 'ALL_USERS') ? `[${s.operatorName}] ` : ''}Sesi #{visibleArchivedSessions.length - idx}: {s.title || s.date} ({s.startTime || '-'})
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="── Sesi Tanggal Lainnya ──">
+                        {otherArchivedSessions.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            📁 {isAdmin && (classFilter === 'ALL' || classFilter === 'ALL_USERS') ? `[${s.operatorName}] ` : ''}{s.date} - {s.title || 'Praktikum'} ({s.startTime || '-'})
+                          </option>
+                        ))}
+                      </optgroup>
+                    </>
+                  ) : (
+                    visibleArchivedSessions.map((s, idx) => (
+                      <option key={s.id} value={s.id}>
+                        📁 {isAdmin && (classFilter === 'ALL' || classFilter === 'ALL_USERS') ? `[${s.operatorName}] ` : ''}Sesi #{visibleArchivedSessions.length - idx}: {s.title || s.date} ({s.startTime || '-'})
+                      </option>
+                    ))
+                  )}
+                  {!currentSession && visibleArchivedSessions.length === 0 && otherArchivedSessions.length === 0 && (
+                    <option value="CURRENT">Belum Ada Sesi Praktikum</option>
+                  )}
+                </>
               )}
             </select>
           </div>
