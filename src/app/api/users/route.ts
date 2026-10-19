@@ -9,7 +9,8 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 
 const todayStr = new Date().toISOString().slice(0, 10);
 
-const DEFAULT_DATA: { users: UserItem[]; passwords: Record<string, string> } = {
+const DEFAULT_DATA: { users: UserItem[]; passwords: Record<string, string>; operatorSessionLimit: number } = {
+  operatorSessionLimit: 120,
   users: [
     {
       id: 'USR-01',
@@ -41,7 +42,7 @@ const DEFAULT_DATA: { users: UserItem[]; passwords: Record<string, string> } = {
   }
 };
 
-function readDatabase(): { users: UserItem[]; passwords: Record<string, string> } {
+function readDatabase(): { users: UserItem[]; passwords: Record<string, string>; operatorSessionLimit: number } {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -57,6 +58,9 @@ function readDatabase(): { users: UserItem[]; passwords: Record<string, string> 
     }
     if (!parsed.passwords) {
       parsed.passwords = DEFAULT_DATA.passwords;
+    }
+    if (typeof parsed.operatorSessionLimit !== 'number' || parsed.operatorSessionLimit <= 0) {
+      parsed.operatorSessionLimit = 120;
     }
 
     // Auto-fix duplicate IDs
@@ -78,7 +82,7 @@ function readDatabase(): { users: UserItem[]; passwords: Record<string, string> 
   }
 }
 
-function writeDatabase(data: { users: UserItem[]; passwords: Record<string, string> }) {
+function writeDatabase(data: { users: UserItem[]; passwords: Record<string, string>; operatorSessionLimit?: number }) {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -215,17 +219,23 @@ function getLatestSessionTimeByUser(): Map<string, string> {
   return map;
 }
 
-async function getMergedDatabase(): Promise<{ users: UserItem[]; passwords: Record<string, string> }> {
+async function getMergedDatabase(): Promise<{ users: UserItem[]; passwords: Record<string, string>; operatorSessionLimit: number }> {
   const db = readDatabase();
   const syncItems = await fetchSupabaseUserSync();
 
   const users: UserItem[] = [...db.users];
   const passwords: Record<string, string> = { ...db.passwords };
+  let operatorSessionLimit = typeof db.operatorSessionLimit === 'number' && db.operatorSessionLimit > 0 ? db.operatorSessionLimit : 120;
 
   if (syncItems.length > 0) {
     for (const item of syncItems) {
       if (!item) continue;
       const action = item.action || 'create';
+
+      if (action === 'update_session_limit' && typeof item.operatorSessionLimit === 'number' && item.operatorSessionLimit > 0) {
+        operatorSessionLimit = item.operatorSessionLimit;
+        continue;
+      }
 
       if (action === 'create' || item.user) {
         const u = item.user;
@@ -347,11 +357,11 @@ async function getMergedDatabase(): Promise<{ users: UserItem[]; passwords: Reco
     }
   }
 
-  if (hasSessionSyncUpdate) {
-    writeDatabase({ users, passwords });
+  if (hasSessionSyncUpdate || db.operatorSessionLimit !== operatorSessionLimit) {
+    writeDatabase({ users, passwords, operatorSessionLimit });
   }
 
-  return { users, passwords };
+  return { users, passwords, operatorSessionLimit };
 }
 
 // GET: Ambil daftar seluruh user & password publik sistem (dengan sinkronisasi Cloud Supabase)
@@ -364,6 +374,7 @@ export async function GET() {
   }));
   return NextResponse.json({
     success: true,
+    operatorSessionLimit: db.operatorSessionLimit || 120,
     users: usersWithOnlineStatus,
     passwords: db.passwords
   });
@@ -441,11 +452,12 @@ export async function POST(req: Request) {
   }
 }
 
-// PATCH: Update User (Ganti Password, Ubah Role, Jadwal Akses Tanggal/Hari/Jam, dll)
+// PATCH: Update User (Ganti Password, Ubah Role, Jadwal Akses Tanggal/Hari/Jam, Durasi Sesi, dll)
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
     const {
+      operatorSessionLimit: incomingSessionLimit,
       email,
       id,
       name,
@@ -463,6 +475,26 @@ export async function PATCH(req: Request) {
     } = body;
 
     const db = await getMergedDatabase();
+
+    // 0. Update operatorSessionLimit jika dikirimkan oleh Admin
+    if (typeof incomingSessionLimit === 'number' && incomingSessionLimit > 0) {
+      db.operatorSessionLimit = incomingSessionLimit;
+      writeDatabase(db);
+      await pushSupabaseUserSync({ action: 'update_session_limit', operatorSessionLimit: incomingSessionLimit });
+      if (!email && !id && !name && !newPassword && !status && !lastSeen && !lastLogin) {
+        const now = Date.now();
+        const usersWithOnlineStatus = db.users.map((u: UserItem) => ({
+          ...u,
+          isOnline: !!(u.lastSeen && now - u.lastSeen < 15000)
+        }));
+        return NextResponse.json({
+          success: true,
+          operatorSessionLimit: incomingSessionLimit,
+          users: usersWithOnlineStatus,
+          passwords: db.passwords
+        });
+      }
+    }
 
     const targetUser = db.users.find((x: UserItem) => {
       if (id && x.id === id) return true;
@@ -508,6 +540,7 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({
       success: true,
+      operatorSessionLimit: db.operatorSessionLimit || 120,
       users: usersWithOnlineStatus,
       passwords: db.passwords
     });

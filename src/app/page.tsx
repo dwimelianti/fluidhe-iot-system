@@ -331,7 +331,7 @@ export default function FluidHEDashboard() {
         }
       } catch (e) { }
     }
-    return 30;
+    return 120;
   });
 
   const [operatorSessionRemaining, setOperatorSessionRemaining] = useState<number>(() => {
@@ -339,7 +339,7 @@ export default function FluidHEDashboard() {
       try {
         const savedSessionRaw = localStorage.getItem('fluidhe_current_session');
         const savedLimit = localStorage.getItem('fluidhe_operator_session_limit');
-        const limitMins = savedLimit ? parseInt(savedLimit, 10) || 30 : 30;
+        const limitMins = savedLimit ? parseInt(savedLimit, 10) || 120 : 120;
         if (savedSessionRaw) {
           const parsed = JSON.parse(savedSessionRaw);
           if (parsed?.startTimeMs) {
@@ -350,10 +350,10 @@ export default function FluidHEDashboard() {
         return limitMins * 60;
       } catch (e) { }
     }
-    return 1800;
+    return 7200;
   });
 
-  const handleUpdateOperatorSessionLimit = (limit: number) => {
+  const handleUpdateOperatorSessionLimit = async (limit: number) => {
     setOperatorSessionLimit(limit);
     try {
       localStorage.setItem('fluidhe_operator_session_limit', String(limit));
@@ -363,6 +363,16 @@ export default function FluidHEDashboard() {
       setOperatorSessionRemaining(Math.max(0, (limit * 60) - elapsedSec));
     } else {
       setOperatorSessionRemaining(limit * 60);
+    }
+    try {
+      await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operatorSessionLimit: limit })
+      });
+      triggerSyncFeedback('Durasi Sesi Diperbarui', `Batas waktu pengoperasian Operator diatur ke ${limit} menit.`);
+    } catch (e) {
+      console.error('Failed to sync operatorSessionLimit with server:', e);
     }
   };
   const [isSessionInfoModalOpen, setIsSessionInfoModalOpen] = useState<boolean>(false);
@@ -522,9 +532,9 @@ export default function FluidHEDashboard() {
               const elapsedSec = Math.max(0, Math.floor((Date.now() - parsedSession.startTimeMs) / 1000));
               setSessionDuration(elapsedSec);
 
-              // Pulihkan sisa durasi sesi operator secara akurat agar TIDAK reset ke 30 menit saat refresh F5
+              // Pulihkan sisa durasi sesi operator secara akurat agar TIDAK reset saat refresh F5
               const savedLimitRaw = localStorage.getItem('fluidhe_operator_session_limit');
-              const limitMins = savedLimitRaw ? parseInt(savedLimitRaw, 10) || 30 : operatorSessionLimit;
+              const limitMins = savedLimitRaw ? parseInt(savedLimitRaw, 10) || 120 : operatorSessionLimit;
               const remainingSec = Math.max(0, (limitMins * 60) - elapsedSec);
               setOperatorSessionRemaining(remainingSec);
               if (remainingSec <= 0) {
@@ -980,15 +990,28 @@ export default function FluidHEDashboard() {
   const [isSendingEmail, setIsSendingEmail] = useState<boolean>(false);
   const [smtpStatusInfo, setSmtpStatusInfo] = useState<string | null>(null);
 
-  // Load user accounts & passwords from Central Server API (/api/users)
+  // Load user accounts, passwords & session limit from Central Server API (/api/users)
   const fetchUsersFromServer = async () => {
     try {
       const res = await fetch('/api/users', { cache: 'no-store' });
       const data = await res.json();
-      if (data.success && Array.isArray(data.users)) {
-        setUsersList(data.users);
+      if (data.success) {
+        if (Array.isArray(data.users)) {
+          setUsersList(data.users);
+        }
         if (data.passwords) {
           setUserPasswords(data.passwords);
+        }
+        if (typeof data.operatorSessionLimit === 'number' && data.operatorSessionLimit > 0) {
+          setOperatorSessionLimit((prev) => {
+            if (prev !== data.operatorSessionLimit) {
+              try {
+                localStorage.setItem('fluidhe_operator_session_limit', String(data.operatorSessionLimit));
+              } catch (e) { }
+              return data.operatorSessionLimit;
+            }
+            return prev;
+          });
         }
       }
     } catch (e) {
