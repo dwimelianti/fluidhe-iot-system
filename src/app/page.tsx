@@ -1800,7 +1800,8 @@ export default function FluidHEDashboard() {
     setTelemetryHistory(realHistory);
 
     // ─── RECORD REAL-TIME TELEMETRY INTO ACTIVE PRACTICUM SESSION ───
-    if (systemState === 'ACTIVE' && realHistory.length > 0) {
+    const isMachinePhysicallyRunning = realHistory.some(d => (d.fc1 > 0.05 || d.fc2 > 0.05 || d.heater1Active || d.heater2Active));
+    if ((systemState === 'ACTIVE' || isMachinePhysicallyRunning) && realHistory.length > 0) {
       setCurrentSession((prev) => {
         if (!prev) return prev;
         const currentData = prev.data || [];
@@ -1815,10 +1816,10 @@ export default function FluidHEDashboard() {
           if (existingKeys.has(ptKey)) {
             continue;
           }
-          // Verifikasi waktu: jangan masukkan data lama dari sebelum sesi dimulai (toleransi 5s)
+          // Verifikasi waktu: jangan masukkan data lama dari sebelum sesi dimulai (toleransi 60s)
           if (prev.startTimeMs && pt.created_at) {
             const ptTime = new Date(pt.created_at).getTime();
-            if (ptTime < prev.startTimeMs - 5000) {
+            if (ptTime < prev.startTimeMs - 60000) {
               continue;
             }
           }
@@ -1852,7 +1853,9 @@ export default function FluidHEDashboard() {
   }, [sessionDuration]);
 
   useEffect(() => {
-    if (!currentSession || !currentSession.id || systemState !== 'ACTIVE') return;
+    if (!currentSession || !currentSession.id) return;
+    const isMachineRunning = systemState === 'ACTIVE' || (currentSession.data && currentSession.data.length > 0);
+    if (!isMachineRunning) return;
     const count = currentSession.data ? currentSession.data.length : 0;
     // HANYA auto-sync jika alat aktif dan memperoleh data sensor (count > 0)
     if (count === 0 || count === lastAutoSyncedCountRef.current) return;
@@ -1881,7 +1884,9 @@ export default function FluidHEDashboard() {
 
   // Standing periodic sync every 5 seconds for active session duration & points
   useEffect(() => {
-    if (!currentSession || !currentSession.id || systemState !== 'ACTIVE') return;
+    if (!currentSession || !currentSession.id) return;
+    const isMachineRunning = systemState === 'ACTIVE' || (currentSession.data && currentSession.data.length > 0);
+    if (!isMachineRunning) return;
     const interval = setInterval(async () => {
       try {
         const count = currentSession.data ? currentSession.data.length : 0;

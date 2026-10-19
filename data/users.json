@@ -105,6 +105,27 @@
       "allowedStartTime": "07:00",
       "allowedEndTime": "18:00",
       "lastSeen": 0
+    },
+    {
+      "id": "USR-13",
+      "name": "Najwa",
+      "email": "2400020024@webmail.uad.ac.id",
+      "role": "operator",
+      "status": "Active",
+      "lastLogin": "2026-10-19T07:26:59.386Z",
+      "isScheduleRestricted": false,
+      "allowedStartDate": "2026-10-19",
+      "allowedEndDate": "2026-10-19",
+      "allowedDays": [
+        "Senin",
+        "Selasa",
+        "Rabu",
+        "Kamis",
+        "Jumat"
+      ],
+      "allowedStartTime": "07:00",
+      "allowedEndTime": "18:00",
+      "lastSeen": 1792394819386
     }
   ],
   "passwords": {
@@ -124,6 +145,9 @@
     "dhias": "yfVRCkZz",
     "2407052002@webmail.uad.ac.id": "Ay6w2HYA",
     "Hutri": "Ay6w2HYA",
-    "hutri": "Ay6w2HYA"
+    "hutri": "Ay6w2HYA",
+    "2400020024@webmail.uad.ac.id": "YUMhhzGn",
+    "Najwa": "YUMhhzGn",
+    "najwa": "YUMhhzGn"
   }
 }
