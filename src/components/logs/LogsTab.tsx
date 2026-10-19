@@ -88,8 +88,17 @@ export const LogsTab: React.FC<LogsTabProps> = ({
   toleranceLevel = 1
 }) => {
   const isAdmin = currentUser?.role === 'admin';
-  // Admin harus memilih operator terlebih dahulu sebelum dapat memilih tanggal dan sesi
-  const isUserSelected = !isAdmin || (Boolean(classFilter) && classFilter !== 'ALL');
+  // Sesi bisa dipilih jika sudah memilih Operator ATAU sudah memilih Tanggal
+  const isSessionEnabled = !isAdmin || (Boolean(classFilter) && classFilter !== 'ALL') || (Boolean(dateFilter) && dateFilter !== 'All');
+
+  // Bersihkan judul sesi dari teks "(Sesi Pagi)", "(Sesi Siang)", dsb.
+  const cleanSessionTitle = (title?: string) => {
+    if (!title) return 'Praktikum';
+    return title
+      .replace(/\s*\((Sesi\s+(Siang|Pagi|Malam|Sore))\)/gi, '')
+      .replace(/\s*\(Telemetri Hari Ini\)/gi, '')
+      .trim();
+  };
 
   // Acuan evaluasi Steady State (Set Point & Toleransi P dari Thermostat)
   const steadyLower = targetTempHot - toleranceLevel;
@@ -344,7 +353,7 @@ export const LogsTab: React.FC<LogsTabProps> = ({
               </h1>
               {activeSessionObj && (
                 <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
-                  {activeSessionObj.title || 'Praktikum Heat Exchanger'} &bull; Operator:{' '}
+                  {cleanSessionTitle(activeSessionObj.title) || 'Praktikum Heat Exchanger'} &bull; Operator:{' '}
                   <strong className="text-slate-800">{activeSessionObj.operatorName}</strong>
                   {activeSessionObj.classGroup && activeSessionObj.classGroup.trim().toLowerCase() !== (activeSessionObj.operatorName || '').trim().toLowerCase()
                     ? ` (${activeSessionObj.classGroup})`
@@ -446,13 +455,12 @@ export const LogsTab: React.FC<LogsTabProps> = ({
                 }}
                 className="w-full px-3 py-1.5 bg-sky-50/50 border border-sky-200 rounded-xl text-xs text-sky-950 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer shadow-2xs"
               >
-                <option value="ALL">-- Pilih Operator / User Terlebih Dahulu --</option>
+                <option value="ALL">Semua Operator / User ({archivedSessions.length + (currentSession ? 1 : 0)} sesi)</option>
                 {classesList.map((c) => (
                   <option key={c.operatorEmail || c.operatorName} value={c.operatorEmail || c.operatorName}>
                     {c.operatorName} ({c.count} sesi)
                   </option>
                 ))}
-                <option value="ALL_USERS">Semua Operator / User ({archivedSessions.length + (currentSession ? 1 : 0)} sesi)</option>
               </select>
             </div>
           )}
@@ -481,14 +489,14 @@ export const LogsTab: React.FC<LogsTabProps> = ({
             </select>
           </div>
 
-          {/* 3. Session Selector (Kotak Terpisah: Abu-abu disabled sebelum pilih user) */}
+          {/* 3. Session Selector (Kotak Terpisah: Terbuka jika sudah pilih Operator ATAU pilih Tanggal) */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-              <Layers className={`w-3.5 h-3.5 ${!isUserSelected ? 'text-slate-400' : 'text-sky-600'}`} /> Pilih Sesi Praktikum
+              <Layers className={`w-3.5 h-3.5 ${!isSessionEnabled ? 'text-slate-400' : 'text-sky-600'}`} /> Pilih Sesi Praktikum
             </label>
             <select
               value={selectedSessionId}
-              disabled={!isUserSelected}
+              disabled={!isSessionEnabled}
               onChange={(e) => {
                 const newId = e.target.value;
                 setSelectedSessionId?.(newId);
@@ -503,19 +511,19 @@ export const LogsTab: React.FC<LogsTabProps> = ({
                 }
               }}
               className={
-                !isUserSelected
+                !isSessionEnabled
                   ? 'w-full px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-400 font-medium cursor-not-allowed select-none opacity-60 shadow-none'
                   : 'w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer shadow-2xs'
               }
             >
-              {!isUserSelected ? (
+              {!isSessionEnabled ? (
                 <option value="">Pilih Sesi Praktikum</option>
               ) : (
                 <>
                   <option value="ALL">
                     Semua Sesi {dateFilter !== 'All' ? `(${dateFilter})` : '(Semua Tanggal)'}
                   </option>
-                  {currentSession && (classFilter === 'ALL' || classFilter === 'ALL_USERS' || (currentSession.operatorEmail && currentSession.operatorEmail.toLowerCase() === classFilter.toLowerCase()) || (currentSession.operatorName && currentSession.operatorName.toLowerCase() === classFilter.toLowerCase())) && (
+                  {currentSession && (classFilter === 'ALL' || (currentSession.operatorEmail && currentSession.operatorEmail.toLowerCase() === classFilter.toLowerCase()) || (currentSession.operatorName && currentSession.operatorName.toLowerCase() === classFilter.toLowerCase())) && (
                     <option value="CURRENT">
                       🟢 Sesi Aktif ({currentSession.date}) {isAdmin ? `[${currentSession.operatorName}]` : ''}
                     </option>
@@ -525,14 +533,14 @@ export const LogsTab: React.FC<LogsTabProps> = ({
                       <optgroup label={`── Sesi Pada Tanggal ${dateFilter} (${visibleArchivedSessions.length}) ──`}>
                         {visibleArchivedSessions.map((s, idx) => (
                           <option key={s.id} value={s.id}>
-                            📁 {isAdmin && (classFilter === 'ALL' || classFilter === 'ALL_USERS') ? `[${s.operatorName}] ` : ''}Sesi #{visibleArchivedSessions.length - idx}: {s.title || s.date} ({s.startTime || '-'})
+                            📁 {isAdmin && classFilter === 'ALL' ? `[${s.operatorName}] ` : ''}Sesi #{visibleArchivedSessions.length - idx}: {cleanSessionTitle(s.title || s.date)} ({s.startTime || '-'})
                           </option>
                         ))}
                       </optgroup>
                       <optgroup label="── Sesi Tanggal Lainnya ──">
                         {otherArchivedSessions.map((s) => (
                           <option key={s.id} value={s.id}>
-                            📁 {isAdmin && (classFilter === 'ALL' || classFilter === 'ALL_USERS') ? `[${s.operatorName}] ` : ''}{s.date} - {s.title || 'Praktikum'} ({s.startTime || '-'})
+                            📁 {isAdmin && classFilter === 'ALL' ? `[${s.operatorName}] ` : ''}{s.date} - {cleanSessionTitle(s.title || 'Praktikum')} ({s.startTime || '-'})
                           </option>
                         ))}
                       </optgroup>
@@ -540,7 +548,7 @@ export const LogsTab: React.FC<LogsTabProps> = ({
                   ) : (
                     visibleArchivedSessions.map((s, idx) => (
                       <option key={s.id} value={s.id}>
-                        📁 {isAdmin && (classFilter === 'ALL' || classFilter === 'ALL_USERS') ? `[${s.operatorName}] ` : ''}Sesi #{visibleArchivedSessions.length - idx}: {s.title || s.date} ({s.startTime || '-'})
+                        📁 {isAdmin && classFilter === 'ALL' ? `[${s.operatorName}] ` : ''}Sesi #{visibleArchivedSessions.length - idx}: {cleanSessionTitle(s.title || s.date)} ({s.startTime || '-'})
                       </option>
                     ))
                   )}
