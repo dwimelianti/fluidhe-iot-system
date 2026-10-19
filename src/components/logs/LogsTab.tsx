@@ -457,64 +457,34 @@ export const LogsTab: React.FC<LogsTabProps> = ({
             </div>
           )}
 
-          {/* 2. Tanggal Filter (Kotak Terpisah: Filter Berdasarkan Tanggal) */}
+          {/* 2. Tanggal Filter (Kotak Terpisah: Selalu Terbuka / Aktif Seperti Operator) */}
           <div>
-            <label className={`block text-xs font-semibold ${!isUserSelected ? 'text-slate-400' : 'text-slate-700'} mb-1 flex items-center justify-between`}>
-              <span className="flex items-center gap-1">
-                <Calendar className={`w-3.5 h-3.5 ${!isUserSelected ? 'text-slate-400' : 'text-sky-600'}`} /> Pilih Tanggal
-              </span>
-              {!isUserSelected && (
-                <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 font-normal">
-                  Terkunci
-                </span>
-              )}
+            <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-sky-600" /> Pilih Tanggal
             </label>
             <select
               value={dateFilter}
-              disabled={!isUserSelected}
               onChange={(e) => {
                 const val = e.target.value;
                 setDateFilter(val);
                 // Beralih ke akumulasi seluruh sesi pada tanggal tersebut agar user langsung melihat data hari itu
                 setSelectedSessionId?.('ALL');
               }}
-              className={
-                !isUserSelected
-                  ? 'w-full px-3 py-1.5 bg-slate-100/90 border border-slate-200 rounded-xl text-xs text-slate-400 font-medium cursor-not-allowed select-none opacity-60 shadow-none'
-                  : 'w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer shadow-2xs'
-              }
+              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer shadow-2xs"
             >
-              {!isUserSelected ? (
-                <option value="All">🔒 Pilih Operator Terlebih Dahulu</option>
-              ) : (
-                <>
-                  <option value="All">Semua Tanggal Arsip</option>
-                  {availableDates.map((item) => (
-                    <option key={item.date} value={item.date}>
-                      {item.label}
-                    </option>
-                  ))}
-                </>
-              )}
+              <option value="All">Semua Tanggal Arsip</option>
+              {availableDates.map((item) => (
+                <option key={item.date} value={item.date}>
+                  {item.label}
+                </option>
+              ))}
             </select>
           </div>
 
-          {/* 3. Session Selector (Kotak Terpisah: Filter Berdasarkan Sesi Praktikum) */}
+          {/* 3. Session Selector (Kotak Terpisah: Abu-abu disabled sebelum pilih user) */}
           <div>
-            <label className={`block text-xs font-semibold ${!isUserSelected ? 'text-slate-400' : 'text-slate-700'} mb-1 flex items-center justify-between`}>
-              <span className="flex items-center gap-1">
-                {!isUserSelected ? (
-                  <Lock className="w-3.5 h-3.5 text-slate-400" />
-                ) : (
-                  <Layers className="w-3.5 h-3.5 text-sky-600" />
-                )}
-                Pilih Sesi Praktikum
-              </span>
-              {!isUserSelected && (
-                <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 font-normal">
-                  Terkunci
-                </span>
-              )}
+            <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+              <Layers className={`w-3.5 h-3.5 ${!isUserSelected ? 'text-slate-400' : 'text-sky-600'}`} /> Pilih Sesi Praktikum
             </label>
             <select
               value={selectedSessionId}
@@ -534,12 +504,12 @@ export const LogsTab: React.FC<LogsTabProps> = ({
               }}
               className={
                 !isUserSelected
-                  ? 'w-full px-3 py-1.5 bg-slate-100/90 border border-slate-200 rounded-xl text-xs text-slate-400 font-medium cursor-not-allowed select-none opacity-60 shadow-none'
+                  ? 'w-full px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-400 font-medium cursor-not-allowed select-none opacity-60 shadow-none'
                   : 'w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer shadow-2xs'
               }
             >
               {!isUserSelected ? (
-                <option value="">🔒 Pilih Operator Terlebih Dahulu</option>
+                <option value="">Pilih Sesi Praktikum</option>
               ) : (
                 <>
                   <option value="ALL">
