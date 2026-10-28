@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import {
   FolderKanban,
@@ -41,6 +42,11 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
   onExportSessionExcel,
   onClearActiveSession
 }) => {
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [editingSession, setEditingSession] = useState<SystemSession | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -259,15 +265,17 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Toast Notification */}
-      {toastMsg && (
+      {/* Toast Notification (Portal to body) */}
+      {isMounted && typeof document !== 'undefined' && toastMsg && createPortal(
         <div
-          className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 text-xs font-extrabold text-white animate-fade-in ${toastMsg.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'
-            }`}
+          className={`fixed bottom-6 right-6 z-[9999] px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 text-xs font-extrabold text-white animate-fade-in ${
+            toastMsg.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'
+          }`}
         >
           {toastMsg.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
           <span>{toastMsg.text}</span>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Header Card */}
@@ -470,31 +478,40 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
                           {/* Edit Button */}
                           <button
                             type="button"
-                            onClick={() => handleOpenEdit(session)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEdit(session);
+                            }}
                             className="p-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-lg transition active:scale-95 cursor-pointer"
                             title="Edit nama kelas, kelompok, atau judul sesi"
                           >
-                            <Edit3 className="w-3.5 h-3.5" />
+                            <Edit3 className="w-3.5 h-3.5 pointer-events-none" />
                           </button>
 
                           {/* Buka di Data Logs Button */}
                           <button
                             type="button"
-                            onClick={() => onSelectSessionForLogs(session.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectSessionForLogs(session.id);
+                            }}
                             className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition active:scale-95 cursor-pointer"
                             title="Buka & Tampilkan di Data Logs"
                           >
-                            <ExternalLink className="w-3.5 h-3.5" />
+                            <ExternalLink className="w-3.5 h-3.5 pointer-events-none" />
                           </button>
 
                           {/* Delete Button (Tersedia untuk semua sesi bagi Admin) */}
                           <button
                             type="button"
-                            onClick={() => setSessionToDelete(session)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSessionToDelete(session);
+                            }}
                             className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg transition active:scale-95 cursor-pointer"
                             title={isCurrent ? "Hentikan & Hapus sesi aktif ini secara permanen" : "Hapus sesi ini secara permanen"}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5 pointer-events-none" />
                           </button>
                         </div>
                       </td>
@@ -507,10 +524,16 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
         </div>
       </div>
 
-      {/* ─── MODAL EDIT SESI ─── */}
-      {editingSession && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4">
+      {/* ─── MODAL EDIT SESI (Portal to document.body) ─── */}
+      {isMounted && typeof document !== 'undefined' && editingSession && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setEditingSession(null)}
+        >
+          <div 
+            className="relative w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-sky-100 text-sky-700 rounded-xl">
@@ -583,13 +606,20 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* ─── MODAL HAPUS TUNGGAL SESI ─── */}
-      {sessionToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4">
+      {/* ─── MODAL HAPUS TUNGGAL SESI (Portal to document.body) ─── */}
+      {isMounted && typeof document !== 'undefined' && sessionToDelete && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setSessionToDelete(null)}
+        >
+          <div 
+            className="relative w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center gap-3">
               <div className="p-3 bg-rose-100 text-rose-700 rounded-2xl">
                 <Trash2 className="w-5 h-5" />
@@ -636,13 +666,20 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* ─── MODAL HAPUS MASSAL SESI TERPILIH ─── */}
-      {showBulkDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4">
+      {/* ─── MODAL HAPUS MASSAL SESI TERPILIH (Portal to document.body) ─── */}
+      {isMounted && typeof document !== 'undefined' && showBulkDeleteModal && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setShowBulkDeleteModal(false)}
+        >
+          <div 
+            className="relative w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center gap-3">
               <div className="p-3 bg-rose-100 text-rose-700 rounded-2xl">
                 <Trash2 className="w-5 h-5" />
@@ -705,7 +742,8 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
