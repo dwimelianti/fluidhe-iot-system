@@ -11,8 +11,7 @@ import {
   Activity,
   CheckCircle2,
   Info,
-  ChevronDown,
-  Wind
+  ChevronDown
 } from 'lucide-react';
 
 interface SolenoidValveItem {
@@ -152,28 +151,6 @@ export const PidDiagram: React.FC<PidDiagramProps> = ({
               }`}
           >
             {diagramMode} {titleExtra}
-          </span>
-
-          {/* Relief Valves Status Pill */}
-          <span
-            className={`px-2.5 py-1 rounded-xl text-[9px] sm:text-[10px] font-black border flex items-center gap-1 ${uapStatus
-                ? 'bg-amber-100 text-amber-800 border-amber-300 animate-pulse'
-                : 'bg-slate-100 text-slate-600 border-slate-200'
-              }`}
-          >
-            <Wind className={`w-3 h-3 ${uapStatus ? 'text-amber-600' : 'text-slate-400'}`} />
-            Vapor Solenoid: {uapStatus ? 'VENTING' : 'CLOSED'}
-          </span>
-
-          {/* Cold Solenoid Valve Pill */}
-          <span
-            className={`px-2.5 py-1 rounded-xl text-[9px] sm:text-[10px] font-black border flex items-center gap-1 ${airDinginStatus
-                ? 'bg-sky-100 text-sky-800 border-sky-300'
-                : 'bg-slate-100 text-slate-600 border-slate-200'
-              }`}
-          >
-            <Droplets className={`w-3 h-3 ${airDinginStatus ? 'text-sky-600' : 'text-slate-400'}`} />
-            Solenoid: {airDinginStatus ? 'OPEN' : 'CLOSED'}
           </span>
         </div>
       </div>

@@ -88,8 +88,6 @@ export const LogsTab: React.FC<LogsTabProps> = ({
   toleranceLevel = 1
 }) => {
   const isAdmin = currentUser?.role === 'admin';
-  // Sesi bisa dipilih jika sudah memilih Operator ATAU sudah memilih Tanggal
-  const isSessionEnabled = !isAdmin || (Boolean(classFilter) && classFilter !== 'ALL') || (Boolean(dateFilter) && dateFilter !== 'All');
 
   // Bersihkan judul sesi dari teks "(Sesi Pagi)", "(Sesi Siang)", dsb.
   const cleanSessionTitle = (title?: string) => {
@@ -130,23 +128,49 @@ export const LogsTab: React.FC<LogsTabProps> = ({
     return list;
   }, [isAdmin, classFilter, archivedSessions, currentSession, dateFilter]);
 
-  // Sesi di luar tanggal yang difilter saat ini (agar user tetap bisa berpindah ke sesi tanggal lain tanpa reset)
-  const otherArchivedSessions = useMemo(() => {
-    if (!dateFilter || dateFilter === 'All') return [];
-    let list = archivedSessions;
+  // Daftar operator/user yang tersedia: jika tanggal dipilih, hanya tampilkan user yang ada pada tanggal tersebut
+  const filteredClassesList = useMemo(() => {
+    let relevant = [...archivedSessions];
     if (currentSession) {
-      list = list.filter((s) => s.id !== currentSession.id);
+      relevant.push(currentSession);
     }
-    if (isAdmin && classFilter !== 'ALL') {
-      list = list.filter(
-        (s) =>
-          (s.operatorEmail && s.operatorEmail.toLowerCase() === classFilter.toLowerCase()) ||
-          (s.classGroup && s.classGroup.toLowerCase() === classFilter.toLowerCase()) ||
-          (s.operatorName && s.operatorName.toLowerCase() === classFilter.toLowerCase())
-      );
+    if (dateFilter && dateFilter !== 'All') {
+      relevant = relevant.filter((s) => isSessionInDateFilter(s.date, dateFilter));
     }
-    return list.filter((s) => !isSessionInDateFilter(s.date, dateFilter));
-  }, [isAdmin, classFilter, archivedSessions, currentSession, dateFilter]);
+
+    const map = new Map<string, { operatorEmail: string; operatorName: string; count: number }>();
+    relevant.forEach((s) => {
+      const email = s.operatorEmail?.toLowerCase().trim() || '';
+      const name = s.operatorName?.trim() || 'Operator';
+      const key = email || name.toLowerCase();
+
+      if (!map.has(key)) {
+        map.set(key, {
+          operatorEmail: s.operatorEmail || '',
+          operatorName: name,
+          count: 1
+        });
+      } else {
+        map.get(key)!.count += 1;
+        if (!map.get(key)!.operatorEmail && s.operatorEmail) {
+          map.get(key)!.operatorEmail = s.operatorEmail;
+        }
+      }
+    });
+
+    return Array.from(map.values());
+  }, [archivedSessions, currentSession, dateFilter]);
+
+  const totalSessionsInCurrentDate = useMemo(() => {
+    let relevant = [...archivedSessions];
+    if (currentSession) {
+      relevant.push(currentSession);
+    }
+    if (dateFilter && dateFilter !== 'All') {
+      relevant = relevant.filter((s) => isSessionInDateFilter(s.date, dateFilter));
+    }
+    return relevant.length;
+  }, [archivedSessions, currentSession, dateFilter]);
 
   // Deduplikasi total sesi unik
   const totalUniqueSessionsCount = useMemo(() => {
@@ -203,14 +227,15 @@ export const LogsTab: React.FC<LogsTabProps> = ({
       const count = dateMap.get(dateStr) || 0;
       const isToday = dateStr === todayStr;
 
-      const dObj = new Date(dateStr);
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const dObj = year && month && day ? new Date(year, month - 1, day) : new Date(dateStr);
       const dateFormatted = !isNaN(dObj.getTime())
         ? dObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
         : dateStr;
 
-      let label = `${dateStr} (${dateFormatted}) - ${count} sesi`;
+      let label = `${dateFormatted} - ${count} sesi`;
       if (isToday) {
-        label = `🟢 ${dateStr} (Hari Ini) - ${count} sesi`;
+        label = `🟢 ${dateFormatted} (Hari Ini) - ${count} sesi`;
       }
       return {
         date: dateStr,
@@ -421,7 +446,7 @@ export const LogsTab: React.FC<LogsTabProps> = ({
           className={`p-4 bg-white rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 ${isAdmin ? 'lg:grid-cols-5' : 'lg:grid-cols-4'
             } gap-4 mb-6 no-print shadow-sm`}
         >
-          {/* 1. Admin Class / Operator Filter (Khusus Admin) */}
+          {/* 1. Admin Class / Operator Filter (Khusus Admin: hanya menampilkan user yang ada di tanggal terpilih) */}
           {isAdmin && setClassFilter && (
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
@@ -432,31 +457,12 @@ export const LogsTab: React.FC<LogsTabProps> = ({
                 onChange={(e) => {
                   const newFilter = e.target.value;
                   setClassFilter(newFilter);
-                  setDateFilter('All');
-                  // Otomatis pilih sesi pertama dari kelas yang difilter agar data langsung tampil
-                  if (newFilter !== 'ALL') {
-                    const matches = archivedSessions.filter(
-                      (s) =>
-                        newFilter === 'ALL_USERS' ||
-                        (s.operatorEmail && s.operatorEmail.toLowerCase() === newFilter.toLowerCase()) ||
-                        (s.classGroup && s.classGroup.toLowerCase() === newFilter.toLowerCase()) ||
-                        (s.operatorName && s.operatorName.toLowerCase() === newFilter.toLowerCase())
-                    );
-                    if (matches.length > 0) {
-                      setSelectedSessionId?.(matches[0].id);
-                    } else if (currentSession) {
-                      setSelectedSessionId?.('CURRENT');
-                    } else {
-                      setSelectedSessionId?.('ALL');
-                    }
-                  } else {
-                    setSelectedSessionId?.('ALL');
-                  }
+                  setSelectedSessionId?.('ALL');
                 }}
                 className="w-full px-3 py-1.5 bg-sky-50/50 border border-sky-200 rounded-xl text-xs text-sky-950 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer shadow-2xs"
               >
-                <option value="ALL">Semua Operator / User ({archivedSessions.length + (currentSession ? 1 : 0)} sesi)</option>
-                {classesList.map((c) => (
+                <option value="ALL">Semua Operator / User ({totalSessionsInCurrentDate} sesi)</option>
+                {filteredClassesList.map((c) => (
                   <option key={c.operatorEmail || c.operatorName} value={c.operatorEmail || c.operatorName}>
                     {c.operatorName} ({c.count} sesi)
                   </option>
@@ -475,8 +481,21 @@ export const LogsTab: React.FC<LogsTabProps> = ({
               onChange={(e) => {
                 const val = e.target.value;
                 setDateFilter(val);
-                // Beralih ke akumulasi seluruh sesi pada tanggal tersebut agar user langsung melihat data hari itu
                 setSelectedSessionId?.('ALL');
+                // Jika operator yang sedang aktif tidak memiliki sesi di tanggal baru ini, kembalikan filter operator ke 'ALL'
+                if (isAdmin && setClassFilter && classFilter !== 'ALL') {
+                  const hasUserInNewDate = archivedSessions.some((s) => {
+                    const matchDate = val === 'All' || isSessionInDateFilter(s.date, val);
+                    const matchUser =
+                      (s.operatorEmail && s.operatorEmail.toLowerCase() === classFilter.toLowerCase()) ||
+                      (s.classGroup && s.classGroup.toLowerCase() === classFilter.toLowerCase()) ||
+                      (s.operatorName && s.operatorName.toLowerCase() === classFilter.toLowerCase());
+                    return matchDate && matchUser;
+                  });
+                  if (!hasUserInNewDate) {
+                    setClassFilter('ALL');
+                  }
+                }
               }}
               className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer shadow-2xs"
             >
@@ -489,73 +508,34 @@ export const LogsTab: React.FC<LogsTabProps> = ({
             </select>
           </div>
 
-          {/* 3. Session Selector (Kotak Terpisah: Terbuka jika sudah pilih Operator ATAU pilih Tanggal) */}
+          {/* 3. Session Selector (Kotak Terpisah: Hanya Menampilkan Sesi pada Tanggal/Operator Terpilih) */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-              <Layers className={`w-3.5 h-3.5 ${!isSessionEnabled ? 'text-slate-400' : 'text-sky-600'}`} /> Pilih Sesi Praktikum
+              <Layers className="w-3.5 h-3.5 text-sky-600" /> Pilih Sesi Praktikum
             </label>
             <select
               value={selectedSessionId}
-              disabled={!isSessionEnabled}
               onChange={(e) => {
                 const newId = e.target.value;
                 setSelectedSessionId?.(newId);
-                // Jika user memilih sesi spesifik, sinkronkan kotak tanggal ke tanggal sesi tersebut
-                if (newId !== 'ALL') {
-                  const target = newId === 'CURRENT'
-                    ? currentSession
-                    : archivedSessions.find((s) => s.id === newId);
-                  if (target?.date) {
-                    setDateFilter(target.date);
-                  }
-                }
               }}
-              className={
-                !isSessionEnabled
-                  ? 'w-full px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-400 font-medium cursor-not-allowed select-none opacity-60 shadow-none'
-                  : 'w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer shadow-2xs'
-              }
+              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer shadow-2xs"
             >
-              {!isSessionEnabled ? (
-                <option value="">Pilih Sesi Praktikum</option>
-              ) : (
-                <>
-                  <option value="ALL">
-                    Semua Sesi {dateFilter !== 'All' ? `(${dateFilter})` : '(Semua Tanggal)'}
-                  </option>
-                  {currentSession && (classFilter === 'ALL' || (currentSession.operatorEmail && currentSession.operatorEmail.toLowerCase() === classFilter.toLowerCase()) || (currentSession.operatorName && currentSession.operatorName.toLowerCase() === classFilter.toLowerCase())) && (
-                    <option value="CURRENT">
-                      🟢 Sesi Aktif ({currentSession.date}) {isAdmin ? `[${currentSession.operatorName}]` : ''}
-                    </option>
-                  )}
-                  {dateFilter !== 'All' && otherArchivedSessions.length > 0 ? (
-                    <>
-                      <optgroup label={`── Sesi Pada Tanggal ${dateFilter} (${visibleArchivedSessions.length}) ──`}>
-                        {visibleArchivedSessions.map((s, idx) => (
-                          <option key={s.id} value={s.id}>
-                            📁 {isAdmin && classFilter === 'ALL' ? `[${s.operatorName}] ` : ''}Sesi #{visibleArchivedSessions.length - idx}: {cleanSessionTitle(s.title || s.date)} ({s.startTime || '-'})
-                          </option>
-                        ))}
-                      </optgroup>
-                      <optgroup label="── Sesi Tanggal Lainnya ──">
-                        {otherArchivedSessions.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            📁 {isAdmin && classFilter === 'ALL' ? `[${s.operatorName}] ` : ''}{s.date} - {cleanSessionTitle(s.title || 'Praktikum')} ({s.startTime || '-'})
-                          </option>
-                        ))}
-                      </optgroup>
-                    </>
-                  ) : (
-                    visibleArchivedSessions.map((s, idx) => (
-                      <option key={s.id} value={s.id}>
-                        📁 {isAdmin && classFilter === 'ALL' ? `[${s.operatorName}] ` : ''}Sesi #{visibleArchivedSessions.length - idx}: {cleanSessionTitle(s.title || s.date)} ({s.startTime || '-'})
-                      </option>
-                    ))
-                  )}
-                  {!currentSession && visibleArchivedSessions.length === 0 && otherArchivedSessions.length === 0 && (
-                    <option value="CURRENT">Belum Ada Sesi Praktikum</option>
-                  )}
-                </>
+              <option value="ALL">
+                Semua Sesi {dateFilter !== 'All' ? `(${dateFilter})` : '(Semua Tanggal)'}
+              </option>
+              {currentSession && (!dateFilter || dateFilter === 'All' || isSessionInDateFilter(currentSession.date, dateFilter)) && (classFilter === 'ALL' || (currentSession.operatorEmail && currentSession.operatorEmail.toLowerCase() === classFilter.toLowerCase()) || (currentSession.operatorName && currentSession.operatorName.toLowerCase() === classFilter.toLowerCase())) && (
+                <option value="CURRENT">
+                  🟢 Sesi Aktif ({currentSession.date}) {isAdmin ? `[${currentSession.operatorName}]` : ''}
+                </option>
+              )}
+              {visibleArchivedSessions.map((s, idx) => (
+                <option key={s.id} value={s.id}>
+                  📁 {isAdmin && classFilter === 'ALL' ? `[${s.operatorName}] ` : ''}Sesi #{visibleArchivedSessions.length - idx}: {cleanSessionTitle(s.title || s.date)} ({s.startTime || '-'})
+                </option>
+              ))}
+              {!currentSession && visibleArchivedSessions.length === 0 && (
+                <option value="NONE" disabled>Belum Ada Sesi Praktikum</option>
               )}
             </select>
           </div>

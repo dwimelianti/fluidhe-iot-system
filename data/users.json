@@ -1,5 +1,4 @@
 {
-  "operatorSessionLimit": 120,
   "users": [
     {
       "id": "USR-01",
@@ -7,7 +6,7 @@
       "email": "anugrahtriplecycle@gmail.com",
       "role": "admin",
       "status": "Active",
-      "lastLogin": "2026-10-13T16:53:54.420Z",
+      "lastLogin": "2026-10-28T08:21:01.136Z",
       "isScheduleRestricted": false,
       "allowedStartDate": "2026-10-01",
       "allowedEndDate": "2026-10-31",
@@ -20,7 +19,7 @@
       ],
       "allowedStartTime": "07:00",
       "allowedEndTime": "18:00",
-      "lastSeen": 1791910498727
+      "lastSeen": 1793175661137
     },
     {
       "id": "USR-08",
@@ -28,7 +27,7 @@
       "email": "firda.chusna@uad.ac.id",
       "role": "admin",
       "status": "Active",
-      "lastLogin": "2026-10-09T01:45:20.000Z",
+      "lastLogin": "2026-10-20T04:30:14.877Z",
       "isScheduleRestricted": false,
       "allowedStartDate": "2026-10-09",
       "allowedEndDate": "2026-10-09",
@@ -49,7 +48,7 @@
       "email": "m.tamrin@staff.uad.ac.id",
       "role": "admin",
       "status": "Active",
-      "lastLogin": "2026-10-09T03:12:15.000Z",
+      "lastLogin": "2026-10-26T00:46:43.948Z",
       "isScheduleRestricted": false,
       "allowedStartDate": "2026-10-09",
       "allowedEndDate": "2026-10-09",
@@ -91,10 +90,10 @@
       "email": "2407052002@webmail.uad.ac.id",
       "role": "operator",
       "status": "Active",
-      "lastLogin": "2026-10-13T14:35:44.204Z",
-      "isScheduleRestricted": false,
-      "allowedStartDate": "2026-10-13",
-      "allowedEndDate": "2026-10-14",
+      "lastLogin": "2026-10-28T08:32:12.257Z",
+      "isScheduleRestricted": true,
+      "allowedStartDate": "2026-10-19",
+      "allowedEndDate": "2026-10-20",
       "allowedDays": [
         "Senin",
         "Selasa",
@@ -104,7 +103,7 @@
       ],
       "allowedStartTime": "07:00",
       "allowedEndTime": "18:00",
-      "lastSeen": 0
+      "lastSeen": 1793176332257
     },
     {
       "id": "USR-13",
@@ -113,7 +112,7 @@
       "role": "operator",
       "status": "Active",
       "lastLogin": "2026-10-19T07:26:59.386Z",
-      "isScheduleRestricted": false,
+      "isScheduleRestricted": true,
       "allowedStartDate": "2026-10-19",
       "allowedEndDate": "2026-10-19",
       "allowedDays": [
@@ -126,6 +125,48 @@
       "allowedStartTime": "07:00",
       "allowedEndTime": "18:00",
       "lastSeen": 1792394819386
+    },
+    {
+      "id": "USR-14",
+      "name": "Defi",
+      "email": "2400020010@webmail.uad.ac.id",
+      "role": "operator",
+      "status": "Active",
+      "lastLogin": "2026-10-26T01:13:23.772Z",
+      "isScheduleRestricted": true,
+      "allowedStartDate": "2026-10-26",
+      "allowedEndDate": "2026-10-26",
+      "allowedDays": [
+        "Senin",
+        "Selasa",
+        "Rabu",
+        "Kamis",
+        "Jumat"
+      ],
+      "allowedStartTime": "07:00",
+      "allowedEndTime": "18:00",
+      "lastSeen": 0
+    },
+    {
+      "id": "USR-15",
+      "name": "dok",
+      "email": "dwimeliantiistiqomah55@gmail.com",
+      "role": "operator",
+      "status": "Active",
+      "lastLogin": "2026-10-28T08:32:22.513Z",
+      "isScheduleRestricted": true,
+      "allowedStartDate": "2026-10-28",
+      "allowedEndDate": "2026-10-28",
+      "allowedDays": [
+        "Senin",
+        "Selasa",
+        "Rabu",
+        "Kamis",
+        "Jumat"
+      ],
+      "allowedStartTime": "07:00",
+      "allowedEndTime": "18:00",
+      "lastSeen": 1793178841821
     }
   ],
   "passwords": {
@@ -148,6 +189,12 @@
     "hutri": "Ay6w2HYA",
     "2400020024@webmail.uad.ac.id": "YUMhhzGn",
     "Najwa": "YUMhhzGn",
-    "najwa": "YUMhhzGn"
-  }
+    "najwa": "YUMhhzGn",
+    "2400020010@webmail.uad.ac.id": "mykxYyB9",
+    "Defi": "mykxYyB9",
+    "defi": "mykxYyB9",
+    "dwimeliantiistiqomah55@gmail.com": "DWTP5PLA",
+    "dok": "DWTP5PLA"
+  },
+  "operatorSessionLimit": 120
 }

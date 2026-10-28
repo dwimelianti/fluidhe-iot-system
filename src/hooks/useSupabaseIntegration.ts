@@ -880,6 +880,7 @@ export function useSupabaseIntegration() {
     latestTelemetry,
     telemetryStream,
     deviceControls,
+    setDeviceControls,
     activeMomentaryButtons,
     isUpdatingControl,
     initializeData,
