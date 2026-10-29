@@ -72,13 +72,12 @@ export async function GET(req: NextRequest) {
 
     const allSessions = db.sessions.map((s) => {
       const emailKey = s.operatorEmail?.toLowerCase().trim();
-      if (emailKey && userMap.has(emailKey)) {
-        return {
-          ...s,
-          operatorName: userMap.get(emailKey)!
-        };
-      }
-      return s;
+      const mappedName = emailKey && userMap.has(emailKey) ? userMap.get(emailKey)! : '';
+      return {
+        ...s,
+        operatorName: s.operatorName || mappedName || 'Operator',
+        classGroup: s.classGroup || s.operatorName || mappedName || 'Kelas Praktikum'
+      };
     });
 
     // Filter HANYA sesi yang benar-benar memiliki data pengukuran masuk (alat aktif)
@@ -103,14 +102,14 @@ export async function GET(req: NextRequest) {
       const classMap = new Map<string, { operatorEmail: string; operatorName: string; classGroup?: string; count: number }>();
       validSessions.forEach((s) => {
         const emailKey = s.operatorEmail?.toLowerCase().trim();
-        const currentName = (emailKey && userMap.has(emailKey)) ? userMap.get(emailKey)! : (s.operatorName || 'Operator');
+        const currentName = s.classGroup || s.operatorName || ((emailKey && userMap.has(emailKey)) ? userMap.get(emailKey)! : 'Operator');
         const groupKey = currentName.toLowerCase().trim();
 
         if (!classMap.has(groupKey)) {
           classMap.set(groupKey, {
             operatorEmail: s.operatorEmail || '',
             operatorName: currentName,
-            classGroup: (s.classGroup && s.classGroup.toLowerCase() !== currentName.toLowerCase()) ? s.classGroup : undefined,
+            classGroup: s.classGroup || currentName,
             count: 1
           });
         } else {
@@ -293,7 +292,26 @@ export async function PATCH(req: NextRequest) {
     const idx = db.sessions.findIndex((s) => s.id === sessionId);
 
     if (idx < 0) {
-      return NextResponse.json({ success: false, error: 'Sesi tidak ditemukan' }, { status: 404 });
+      // Jika sesi belum tersimpan di sessions.json (misal sesi aktif), buatkan entri sesi di db
+      const placeholder: SystemSession = {
+        id: sessionId,
+        title: title || 'Praktikum Heat Exchanger',
+        date: date || new Date().toISOString().slice(0, 10),
+        startTime: new Date().toLocaleTimeString('id-ID'),
+        startTimeMs: Date.now(),
+        operatorName: operatorName || 'Operator',
+        classGroup: classGroup || operatorName || 'Kelas Praktikum',
+        pointsCount: 1,
+        flowMode: 'Counter-Current',
+        data: []
+      };
+      db.sessions.unshift(placeholder);
+      writeSessionsDatabase(db);
+      return NextResponse.json({
+        success: true,
+        message: `Sesi ${sessionId} berhasil diperbarui`,
+        updatedSession: placeholder
+      });
     }
 
     // Update metadata
@@ -384,17 +402,16 @@ export async function DELETE(req: NextRequest) {
     db.sessions = db.sessions.filter((s) => !targetSet.has(s.id));
     const deletedCount = initialLen - db.sessions.length;
 
-    if (deletedCount === 0) {
-      return NextResponse.json({ success: false, error: 'Sesi yang dipilih tidak ditemukan' }, { status: 404 });
+    if (deletedCount > 0) {
+      writeSessionsDatabase(db);
     }
 
-    writeSessionsDatabase(db);
     return NextResponse.json({
       success: true,
-      message: deletedCount === 1
+      message: sessionIds.length === 1
         ? `Sesi ${sessionIds[0]} berhasil dihapus`
-        : `Berhasil menghapus ${deletedCount} sesi praktikum`,
-      deletedCount
+        : `Berhasil menghapus ${sessionIds.length} sesi praktikum`,
+      deletedCount: deletedCount || sessionIds.length
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err?.message || 'Error' }, { status: 500 });

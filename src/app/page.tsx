@@ -4573,7 +4573,7 @@ export default function FluidHEDashboard() {
               <SessionManagerTab
                 archivedSessions={archivedSessions}
                 currentSession={currentSession}
-                onRefreshSessions={() => fetchSessions(currentUser.role, currentUser.email, classFilter)}
+                onRefreshSessions={() => fetchSessions(currentUser.role, currentUser.email, 'ALL')}
                 onSelectSessionForLogs={(sessionId) => {
                   if (currentSession && sessionId === currentSession.id) {
                     setSelectedLogsSessionId('CURRENT');
@@ -4585,6 +4585,16 @@ export default function FluidHEDashboard() {
                 onExportMasterExcel={handleExportAllClassesExcel}
                 onExportSessionExcel={handleExportCurrentSessionExcel}
                 onClearActiveSession={handleClearActiveSession}
+                onUpdateCurrentSession={(updated) => {
+                  setCurrentSession((prev) => {
+                    if (!prev) return null;
+                    const next = { ...prev, ...updated };
+                    try {
+                      localStorage.setItem('fluidhe_current_session', JSON.stringify(next));
+                    } catch (e) { }
+                    return next;
+                  });
+                }}
               />
             )}
 

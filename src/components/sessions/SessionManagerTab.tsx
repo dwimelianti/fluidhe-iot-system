@@ -31,6 +31,7 @@ export interface SessionManagerTabProps {
   onExportMasterExcel?: () => void;
   onExportSessionExcel?: (session: SystemSession) => void;
   onClearActiveSession?: () => void;
+  onUpdateCurrentSession?: (updated: Partial<SystemSession>) => void;
 }
 
 export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
@@ -40,7 +41,8 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
   onSelectSessionForLogs,
   onExportMasterExcel,
   onExportSessionExcel,
-  onClearActiveSession
+  onClearActiveSession,
+  onUpdateCurrentSession
 }) => {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
@@ -64,6 +66,10 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
+  // Optimistic tracking for instant UI feedback
+  const [deletedIds, setDeletedIds] = useState<string[]>([]);
+  const [editedSessions, setEditedSessions] = useState<Record<string, Partial<SystemSession>>>({});
+
   // Feedback Toast
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -75,29 +81,40 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
   // Deduplikasi sesi secara ketat berdasarkan ID: HANYA tampilkan sesi jika memperoleh data (alat aktif)
   const allSessions = useMemo(() => {
     const sessionMap = new Map<string, SystemSession>();
-    // Taruh arsip terlebih dahulu (hanya yang memiliki data sensor)
-    archivedSessions.forEach((s) => {
+    // Taruh arsip terlebih dahulu (hanya yang memiliki data sensor dan belum dihapus)
+    archivedSessions.forEach((rawS) => {
+      if (deletedIds.includes(rawS?.id)) return;
+      let s = { ...rawS };
+      if (editedSessions[s.id]) {
+        s = { ...s, ...editedSessions[s.id] };
+      }
       const pts = typeof s?.pointsCount === 'number' ? s.pointsCount : (s?.data?.length || 0);
       if (s?.id && (pts > 0 || (s.data && s.data.length > 0))) {
         sessionMap.set(s.id, s);
       }
     });
-    // Jika ada currentSession, masukkan HANYA jika data sudah masuk (alat aktif)
-    if (currentSession?.id) {
-      const currentPts = typeof currentSession.pointsCount === 'number' ? currentSession.pointsCount : (currentSession.data?.length || 0);
-      if (currentPts > 0 || (currentSession.data && currentSession.data.length > 0)) {
-        const existing = sessionMap.get(currentSession.id);
-        if (!existing || (currentSession.data && currentSession.data.length >= (existing.data?.length || 0))) {
-          sessionMap.set(currentSession.id, { ...(existing || {}), ...currentSession });
+
+    // Jika ada currentSession, masukkan HANYA jika data sudah masuk (alat aktif) dan belum dihapus
+    if (currentSession?.id && !deletedIds.includes(currentSession.id)) {
+      let activeS = { ...currentSession };
+      if (editedSessions[activeS.id]) {
+        activeS = { ...activeS, ...editedSessions[activeS.id] };
+      }
+      const currentPts = typeof activeS.pointsCount === 'number' ? activeS.pointsCount : (activeS.data?.length || 0);
+      if (currentPts > 0 || (activeS.data && activeS.data.length > 0)) {
+        const existing = sessionMap.get(activeS.id);
+        if (!existing || (activeS.data && activeS.data.length >= (existing.data?.length || 0))) {
+          sessionMap.set(activeS.id, { ...(existing || {}), ...activeS });
         }
       }
     }
+
     return Array.from(sessionMap.values()).sort((a, b) => {
       const timeA = a.startTimeMs || (a.date ? new Date(a.date).getTime() : 0);
       const timeB = b.startTimeMs || (b.date ? new Date(b.date).getTime() : 0);
       return timeB - timeA;
     });
-  }, [currentSession, archivedSessions]);
+  }, [currentSession, archivedSessions, deletedIds, editedSessions]);
 
   const filteredSessions = allSessions.filter((s) => {
     const q = searchQuery.toLowerCase().trim();
@@ -146,21 +163,47 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
     if (!editingSession) return;
     try {
       setIsSaving(true);
+      const targetId = editingSession.id;
+      const isTargetCurrent = targetId === currentSession?.id;
+
+      const updatedPayload = {
+        role: 'admin',
+        sessionId: targetId,
+        title: editTitle.trim(),
+        classGroup: editClassGroup.trim(),
+        operatorName: editOperatorName.trim(),
+        date: editDate.trim()
+      };
+
       const res = await fetch('/api/sessions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          role: 'admin',
-          sessionId: editingSession.id,
-          title: editTitle.trim(),
-          classGroup: editClassGroup.trim(),
-          operatorName: editOperatorName.trim(),
-          date: editDate.trim()
-        })
+        body: JSON.stringify(updatedPayload)
       });
       const data = await res.json();
+
       if (data.success) {
-        showToast(`Sesi ${editingSession.id} berhasil diperbarui!`, 'success');
+        // Optimistic UI update
+        setEditedSessions((prev) => ({
+          ...prev,
+          [targetId]: {
+            title: editTitle.trim(),
+            classGroup: editClassGroup.trim(),
+            operatorName: editOperatorName.trim(),
+            date: editDate.trim()
+          }
+        }));
+
+        if (isTargetCurrent) {
+          onUpdateCurrentSession?.({
+            title: editTitle.trim(),
+            classGroup: editClassGroup.trim(),
+            operatorName: editOperatorName.trim(),
+            date: editDate.trim()
+          });
+        }
+
+        showToast(`Sesi ${targetId} berhasil diperbarui!`, 'success');
         setEditingSession(null);
         onRefreshSessions();
       } else {
@@ -177,25 +220,40 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
     if (!sessionToDelete) return;
     try {
       setIsDeleting(true);
-      const isTargetCurrent = sessionToDelete.id === currentSession?.id;
+      const targetId = sessionToDelete.id;
+      const isTargetCurrent = targetId === currentSession?.id;
 
-      const res = await fetch(`/api/sessions?sessionId=${encodeURIComponent(sessionToDelete.id)}&role=admin`, {
+      // Bersihkan telemetri dari supabase jika sesi memiliki rekaman
+      if (sessionToDelete.data && sessionToDelete.data.length > 0) {
+        const minTime = sessionToDelete.data[0].created_at || (sessionToDelete.startTimeMs ? new Date(sessionToDelete.startTimeMs - 2000).toISOString() : null);
+        const maxTime = sessionToDelete.data[sessionToDelete.data.length - 1].created_at || (sessionToDelete.endTimeMs ? new Date(sessionToDelete.endTimeMs + 2000).toISOString() : null);
+        if (minTime && maxTime) {
+          try {
+            await fetch(`/api/supabase/telemetry?minTime=${encodeURIComponent(minTime)}&maxTime=${encodeURIComponent(maxTime)}`, {
+              method: 'DELETE'
+            });
+          } catch (e) { }
+        }
+      }
+
+      // Jalankan hapus sesi di server
+      const res = await fetch(`/api/sessions?sessionId=${encodeURIComponent(targetId)}&role=admin`, {
         method: 'DELETE'
       });
       const data = await res.json();
 
+      // Jika target adalah sesi aktif, reset sesi aktif
       if (isTargetCurrent) {
         onClearActiveSession?.();
       }
 
-      if (data.success) {
-        showToast(data.message || `Sesi ${sessionToDelete.id} & seluruh data sensornya berhasil dihapus secara permanen!`, 'success');
-        setSelectedSessionIds((prev) => prev.filter((id) => id !== sessionToDelete.id));
-        setSessionToDelete(null);
-        onRefreshSessions();
-      } else {
-        showToast(data.error || 'Gagal menghapus sesi', 'error');
-      }
+      // Optimistic update: langsung hapus dari tampilan
+      setDeletedIds((prev) => [...prev, targetId]);
+      setSelectedSessionIds((prev) => prev.filter((id) => id !== targetId));
+      setSessionToDelete(null);
+
+      showToast(data.message || `Sesi ${targetId} & seluruh data sensornya berhasil dihapus secara permanen!`, 'success');
+      onRefreshSessions();
     } catch (err: any) {
       showToast(err?.message || 'Error saat menghapus sesi', 'error');
     } finally {
@@ -207,14 +265,31 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
     if (selectedSessionIds.length === 0) return;
     try {
       setIsBulkDeleting(true);
-      const includesCurrent = currentSession && selectedSessionIds.includes(currentSession.id);
+      const targetIds = [...selectedSessionIds];
+      const includesCurrent = currentSession && targetIds.includes(currentSession.id);
+
+      // Bersihkan telemetri dari supabase untuk sesi-sesi yang dipilih jika ada
+      const targetSessions = allSessions.filter((s) => targetIds.includes(s.id));
+      for (const s of targetSessions) {
+        if (s.data && s.data.length > 0) {
+          const minTime = s.data[0].created_at;
+          const maxTime = s.data[s.data.length - 1].created_at;
+          if (minTime && maxTime) {
+            try {
+              await fetch(`/api/supabase/telemetry?minTime=${encodeURIComponent(minTime)}&maxTime=${encodeURIComponent(maxTime)}`, {
+                method: 'DELETE'
+              });
+            } catch (e) { }
+          }
+        }
+      }
 
       const res = await fetch('/api/sessions', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           role: 'admin',
-          sessionIds: selectedSessionIds
+          sessionIds: targetIds
         })
       });
       const data = await res.json();
@@ -223,14 +298,13 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
         onClearActiveSession?.();
       }
 
-      if (data.success) {
-        showToast(data.message || `Berhasil menghapus ${selectedSessionIds.length} sesi praktikum!`, 'success');
-        setSelectedSessionIds([]);
-        setShowBulkDeleteModal(false);
-        onRefreshSessions();
-      } else {
-        showToast(data.error || 'Gagal menghapus sesi terpilih', 'error');
-      }
+      // Optimistic update: langsung sembunyikan semua targetIds
+      setDeletedIds((prev) => [...prev, ...targetIds]);
+      setSelectedSessionIds([]);
+      setShowBulkDeleteModal(false);
+
+      showToast(data.message || `Berhasil menghapus ${targetIds.length} sesi praktikum!`, 'success');
+      onRefreshSessions();
     } catch (err: any) {
       showToast(err?.message || 'Error saat menghapus sesi massal', 'error');
     } finally {
@@ -455,8 +529,13 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
 
                       {/* Operator / Akun */}
                       <td className="py-3 px-3.5">
-                        <span className="font-bold text-slate-800 block">{session.operatorName}</span>
-                        <span className="text-[11px] text-slate-400 block">{session.operatorEmail || '-'}</span>
+                        <span className="font-bold text-slate-800 block">
+                          {session.classGroup || session.operatorName || 'Operator'}
+                        </span>
+                        {session.classGroup && session.operatorName && session.classGroup.toLowerCase() !== session.operatorName.toLowerCase() && (
+                          <span className="text-[11px] text-slate-500 block">Op: {session.operatorName}</span>
+                        )}
+                        <span className="text-[11px] text-slate-400 block font-mono">{session.operatorEmail || '-'}</span>
                       </td>
 
                       {/* Judul Sesi */}
@@ -561,6 +640,17 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
                   placeholder="Contoh: Praktikum Heat Exchanger Modul 1"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-sky-500/20 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Kelompok / Kelas</label>
+                <input
+                  type="text"
+                  value={editClassGroup}
+                  onChange={(e) => setEditClassGroup(e.target.value)}
+                  placeholder="Contoh: Kelompok 1 / Kelas Praktikum"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-sky-500/20 focus:outline-none"
                 />
               </div>
