@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { SystemSession } from '@/types';
+import { SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from '@/lib/supabase';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
@@ -42,6 +43,62 @@ function writeSessionsDatabase(data: { sessions: SystemSession[] }): boolean {
   }
 }
 
+// ─── SUPABASE CLOUD SESSION SYNCHRONIZATION ───
+// Allows sessions created, edited, or deleted on Vercel read-only filesystem to persist across all serverless lambdas
+async function fetchSupabaseSessionSync(): Promise<any[]> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/telemetry_data?warning_status=like.SESSION_SYNC:*&order=id.asc`, {
+      headers: {
+        'apikey': DEFAULT_SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${DEFAULT_SUPABASE_ANON_KEY}`
+      },
+      signal: controller.signal,
+      cache: 'no-store'
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return [];
+    const rows = await res.json();
+    const payloads: any[] = [];
+    for (const r of rows) {
+      if (typeof r.warning_status === 'string' && r.warning_status.startsWith('SESSION_SYNC:')) {
+        try {
+          const payload = JSON.parse(r.warning_status.slice('SESSION_SYNC:'.length));
+          payloads.push(payload);
+        } catch (e) { }
+      }
+    }
+    return payloads;
+  } catch (err) {
+    console.warn('[Sessions API] Failed to fetch Supabase session sync:', err);
+    return [];
+  }
+}
+
+async function pushSupabaseSessionSync(payload: any): Promise<void> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    await fetch(`${SUPABASE_URL}/rest/v1/telemetry_data`, {
+      method: 'POST',
+      headers: {
+        'apikey': DEFAULT_SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${DEFAULT_SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({
+        warning_status: `SESSION_SYNC:${JSON.stringify(payload)}`
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+  } catch (err) {
+    console.warn('[Sessions API] Failed to push Supabase session sync:', err);
+  }
+}
+
 // ─── GET: Ambil Sesi dengan Role-Based Data Segregation ───
 export async function GET(req: NextRequest) {
   try {
@@ -52,6 +109,52 @@ export async function GET(req: NextRequest) {
     const sessionId = searchParams.get('sessionId');
 
     const db = readSessionsDatabase();
+    const syncItems = await fetchSupabaseSessionSync();
+
+    let mergedSessions = [...db.sessions];
+
+    if (syncItems.length > 0) {
+      for (const item of syncItems) {
+        if (!item || !item.action) continue;
+        if (item.action === 'delete') {
+          const toDelete = new Set<string>(
+            Array.isArray(item.sessionIds) ? item.sessionIds : (item.sessionId ? [item.sessionId] : [])
+          );
+          mergedSessions = mergedSessions.filter((s) => !toDelete.has(s.id));
+        } else if (item.action === 'edit' && item.sessionId) {
+          const idx = mergedSessions.findIndex((s) => s.id === item.sessionId);
+          if (idx >= 0) {
+            mergedSessions[idx] = {
+              ...mergedSessions[idx],
+              ...(item.title !== undefined ? { title: item.title } : {}),
+              ...(item.classGroup !== undefined ? { classGroup: item.classGroup } : {}),
+              ...(item.operatorName !== undefined ? { operatorName: item.operatorName } : {}),
+              ...(item.date !== undefined ? { date: item.date } : {})
+            };
+          } else {
+            mergedSessions.unshift({
+              id: item.sessionId,
+              title: item.title || 'Praktikum Heat Exchanger',
+              date: item.date || new Date().toISOString().slice(0, 10),
+              startTime: new Date().toLocaleTimeString('id-ID'),
+              startTimeMs: Date.now(),
+              operatorName: item.operatorName || 'Operator',
+              classGroup: item.classGroup || item.operatorName || 'Kelas Praktikum',
+              pointsCount: 1,
+              flowMode: 'Counter-Current',
+              data: []
+            });
+          }
+        } else if (item.action === 'save' && item.session && item.session.id) {
+          const idx = mergedSessions.findIndex((s) => s.id === item.session.id);
+          if (idx >= 0) {
+            mergedSessions[idx] = { ...mergedSessions[idx], ...item.session };
+          } else {
+            mergedSessions.unshift(item.session);
+          }
+        }
+      }
+    }
 
     // Sinkronkan nama pengguna secara dinamis dari master users.json
     const usersFilePath = path.join(DATA_DIR, 'users.json');
@@ -70,7 +173,7 @@ export async function GET(req: NextRequest) {
       }
     } catch (e) { }
 
-    const allSessions = db.sessions.map((s) => {
+    const allSessions = mergedSessions.map((s) => {
       const emailKey = s.operatorEmail?.toLowerCase().trim();
       const mappedName = emailKey && userMap.has(emailKey) ? userMap.get(emailKey)! : '';
       return {
@@ -253,6 +356,27 @@ export async function POST(req: NextRequest) {
       console.warn('[Sessions API] Failed to update operator lastLogin in users.json:', e);
     }
 
+    // Sync to Supabase Cloud so newly archived sessions persist on Vercel
+    await pushSupabaseSessionSync({
+      action: 'save',
+      session: {
+        id: session.id,
+        title: session.title,
+        date: session.date,
+        startTime: session.startTime,
+        endTime: session.endTime,
+        startTimeMs: session.startTimeMs,
+        endTimeMs: session.endTimeMs,
+        operatorName: session.operatorName,
+        operatorEmail: session.operatorEmail,
+        operatorRole: session.operatorRole,
+        classGroup: session.classGroup,
+        pointsCount: session.pointsCount || (session.data ? session.data.length : 0),
+        flowMode: session.flowMode,
+        durationSeconds: session.durationSeconds
+      }
+    });
+
     return NextResponse.json({
       success: true,
       message: 'Sesi praktikum berhasil diarsipkan di server',
@@ -321,6 +445,16 @@ export async function PATCH(req: NextRequest) {
     if (date !== undefined) db.sessions[idx].date = date;
 
     writeSessionsDatabase(db);
+
+    // Sync to Supabase Cloud so Vercel production persists edits immediately across all lambdas
+    await pushSupabaseSessionSync({
+      action: 'edit',
+      sessionId,
+      title: db.sessions[idx].title,
+      classGroup: db.sessions[idx].classGroup,
+      operatorName: db.sessions[idx].operatorName,
+      date: db.sessions[idx].date
+    });
 
     return NextResponse.json({
       success: true,
@@ -405,6 +539,12 @@ export async function DELETE(req: NextRequest) {
     if (deletedCount > 0) {
       writeSessionsDatabase(db);
     }
+
+    // Sync to Supabase Cloud so Vercel production persists deletions immediately across all lambdas
+    await pushSupabaseSessionSync({
+      action: 'delete',
+      sessionIds
+    });
 
     return NextResponse.json({
       success: true,

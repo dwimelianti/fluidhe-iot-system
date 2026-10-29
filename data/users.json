@@ -6,7 +6,7 @@
       "email": "anugrahtriplecycle@gmail.com",
       "role": "admin",
       "status": "Active",
-      "lastLogin": "2026-10-29T05:26:04.527Z",
+      "lastLogin": "2026-10-29T05:35:56.900Z",
       "isScheduleRestricted": false,
       "allowedStartDate": "2026-10-01",
       "allowedEndDate": "2026-10-31",
@@ -19,7 +19,7 @@
       ],
       "allowedStartTime": "07:00",
       "allowedEndTime": "18:00",
-      "lastSeen": 0
+      "lastSeen": 1793252449855
     },
     {
       "id": "USR-08",
@@ -146,27 +146,6 @@
       "allowedStartTime": "07:00",
       "allowedEndTime": "18:00",
       "lastSeen": 0
-    },
-    {
-      "id": "USR-15",
-      "name": "dok",
-      "email": "dwimeliantiistiqomah55@gmail.com",
-      "role": "operator",
-      "status": "Active",
-      "lastLogin": "2026-10-28T08:32:22.513Z",
-      "isScheduleRestricted": true,
-      "allowedStartDate": "2026-10-28",
-      "allowedEndDate": "2026-10-28",
-      "allowedDays": [
-        "Senin",
-        "Selasa",
-        "Rabu",
-        "Kamis",
-        "Jumat"
-      ],
-      "allowedStartTime": "07:00",
-      "allowedEndTime": "18:00",
-      "lastSeen": 1793178841821
     }
   ],
   "passwords": {
@@ -192,9 +171,7 @@
     "najwa": "YUMhhzGn",
     "2400020010@webmail.uad.ac.id": "mykxYyB9",
     "Defi": "mykxYyB9",
-    "defi": "mykxYyB9",
-    "dwimeliantiistiqomah55@gmail.com": "DWTP5PLA",
-    "dok": "DWTP5PLA"
+    "defi": "mykxYyB9"
   },
   "operatorSessionLimit": 120
 }

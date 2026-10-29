@@ -22,7 +22,7 @@ import {
 export const isHardwareTelemetryRow = (r: TelemetryRow | null | undefined): boolean => {
   if (!r) return false;
   const ws = String(r.warning_status || '');
-  if (ws.startsWith('CCTV_URL:') || ws.startsWith('PTZ_CMD:') || ws.startsWith('USER_SYNC:')) {
+  if (ws.startsWith('CCTV_URL:') || ws.startsWith('PTZ_CMD:') || ws.startsWith('USER_SYNC:') || ws.startsWith('SESSION_SYNC:')) {
     return false;
   }
   // Tolak paket tiruan jika seluruh nilai suhu 0 dan bukan data normal

@@ -42,8 +42,10 @@ export async function GET(req: NextRequest) {
     }
 
     const data = await res.json();
+    const isSpecialStatus = (ws: string) =>
+      ws.startsWith('CCTV_URL:') || ws.startsWith('PTZ_CMD:') || ws.startsWith('USER_SYNC:') || ws.startsWith('SESSION_SYNC:');
     const cleanData = Array.isArray(data)
-      ? data.filter((item: any) => !String(item?.warning_status || '').startsWith('CCTV_URL:'))
+      ? data.filter((item: any) => !isSpecialStatus(String(item?.warning_status || '')))
       : [];
     const sorted = cleanData.reverse();
     return NextResponse.json({ data: sorted });

@@ -66,9 +66,42 @@ export const SessionManagerTab: React.FC<SessionManagerTabProps> = ({
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
-  // Optimistic tracking for instant UI feedback
-  const [deletedIds, setDeletedIds] = useState<string[]>([]);
-  const [editedSessions, setEditedSessions] = useState<Record<string, Partial<SystemSession>>>({});
+  // Optimistic tracking for instant UI feedback (persisted to localStorage so reloads keep state)
+  const [deletedIds, setDeletedIds] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('fluidhe_deleted_session_ids');
+        return saved ? JSON.parse(saved) : [];
+      } catch (e) { }
+    }
+    return [];
+  });
+
+  const [editedSessions, setEditedSessions] = useState<Record<string, Partial<SystemSession>>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('fluidhe_edited_sessions');
+        return saved ? JSON.parse(saved) : {};
+      } catch (e) { }
+    }
+    return {};
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('fluidhe_deleted_session_ids', JSON.stringify(deletedIds));
+      } catch (e) { }
+    }
+  }, [deletedIds]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('fluidhe_edited_sessions', JSON.stringify(editedSessions));
+      } catch (e) { }
+    }
+  }, [editedSessions]);
 
   // Feedback Toast
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
